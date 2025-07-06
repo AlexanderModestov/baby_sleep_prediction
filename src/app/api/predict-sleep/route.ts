@@ -60,8 +60,9 @@ Consider:
       try {
         result = await model.generateContent(prompt)
         break // Success, exit retry loop
-      } catch (error: any) {
-        if (error.status === 429 && retryCount < maxRetries - 1) {
+      } catch (error: unknown) {
+        const isRateLimitError = error && typeof error === 'object' && 'status' in error && error.status === 429
+        if (isRateLimitError && retryCount < maxRetries - 1) {
           // Rate limited, wait and retry
           const waitTime = Math.pow(2, retryCount) * 1000 // Exponential backoff: 1s, 2s, 4s
           console.log(`Rate limited, retrying in ${waitTime}ms...`)
