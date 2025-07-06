@@ -19,16 +19,19 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
   const { showAlert, hapticFeedback } = useTelegram()
   const [isStarting, setIsStarting] = useState(false)
   const [isEnding, setIsEnding] = useState(false)
-  const [showStartForm, setShowStartForm] = useState(false)
-  const [showEndForm, setShowEndForm] = useState(false)
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [quality, setQuality] = useState('')
+  const [stillSleeping, setStillSleeping] = useState(true)
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
 
   useEffect(() => {
     // Initialize current time on client
-    setCurrentTime(new Date())
+    const now = new Date()
+    setCurrentTime(now)
+    // Set start time to local timezone for datetime-local input
+    const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+    setStartTime(localDateTime)
   }, [])
 
   useEffect(() => {
@@ -36,29 +39,46 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
       const timer = setInterval(() => {
         setCurrentTime(new Date())
       }, 1000)
+      
+      // Initialize end time with current local time when there's an active session
+      if (!endTime) {
+        const now = new Date()
+        const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+        setEndTime(localDateTime)
+      }
+      
       return () => clearInterval(timer)
     }
-  }, [activeSession, currentTime])
+  }, [activeSession, currentTime, endTime])
 
-  const handleStartSleep = async (useNow = true) => {
+  const handleStartSleep = async () => {
     setIsStarting(true)
     hapticFeedback()
 
     try {
-      const sleepStartTime = useNow ? new Date().toISOString() : startTime
+      // Convert local datetime to UTC for server
+      const sleepStartTime = startTime ? new Date(startTime).toISOString() : new Date().toISOString()
+      const sleepEndTime = stillSleeping ? null : (endTime ? new Date(endTime).toISOString() : null)
       
       await startSleepSession({
         child_id: childId,
         start_time: sleepStartTime,
-        end_time: null,
-        duration_minutes: null,
-        quality: null,
+        end_time: sleepEndTime,
+        duration_minutes: sleepEndTime ? Math.floor((new Date(sleepEndTime).getTime() - new Date(sleepStartTime).getTime()) / (1000 * 60)) : null,
+        quality: stillSleeping ? null : quality,
         session_type: getSessionType(sleepStartTime),
-        is_active: true
+        is_active: stillSleeping
       })
 
-      setShowStartForm(false)
-      setStartTime('')
+      if (!stillSleeping) {
+        // Reset form with local time
+        const now = new Date()
+        const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+        setStartTime(localDateTime)
+        setEndTime('')
+        setQuality('')
+        setStillSleeping(true)
+      }
       onSessionUpdate?.()
     } catch {
       hapticFeedback()
@@ -68,26 +88,18 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
     }
   }
 
-  const handleEndSleep = async (stillSleeping = false) => {
+  const handleEndSleep = async () => {
     if (!activeSession) return
-
-    if (stillSleeping) {
-      setShowEndForm(true)
-      if (currentTime) {
-        setEndTime(currentTime.toISOString().slice(0, 16))
-      }
-      return
-    }
 
     setIsEnding(true)
     hapticFeedback()
 
     try {
-      const sleepEndTime = endTime || new Date().toISOString()
+      // Convert local datetime to UTC for server
+      const sleepEndTime = endTime ? new Date(endTime).toISOString() : new Date().toISOString()
       
       await endSleepSession(activeSession.id, sleepEndTime, quality)
       
-      setShowEndForm(false)
       setEndTime('')
       setQuality('')
       onSessionUpdate?.()
@@ -144,103 +156,78 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
             </div>
 
             {/* End Sleep Controls */}
-            {!showEndForm ? (
-              <div className="space-y-3">
-                <Button
-                  onClick={() => handleEndSleep(false)}
-                  disabled={isEnding}
-                  className="w-full"
-                >
-                  {isEnding ? 'Ending...' : 'End Sleep Now'}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => handleEndSleep(true)}
-                  className="w-full"
-                >
-                  Set Custom End Time
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <Input
-                  label="End Time"
-                  type="datetime-local"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                />
-                <Select
-                  label="Sleep Quality"
-                  value={quality}
-                  onChange={(e) => setQuality(e.target.value)}
-                  options={qualityOptions}
-                />
-                <div className="flex space-x-3">
-                  <Button
-                    variant="secondary"
-                    onClick={() => setShowEndForm(false)}
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={() => handleEndSleep(false)}
-                    disabled={isEnding}
-                    className="flex-1"
-                  >
-                    {isEnding ? 'Ending...' : 'End Sleep'}
-                  </Button>
-                </div>
-              </div>
-            )}
+            <div className="space-y-4">
+              <Input
+                label="End Time"
+                type="datetime-local"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+              />
+              <Select
+                label="Sleep Quality"
+                value={quality}
+                onChange={(e) => setQuality(e.target.value)}
+                options={qualityOptions}
+              />
+              <Button
+                onClick={handleEndSleep}
+                disabled={isEnding || !endTime || !quality}
+                className="w-full"
+              >
+                {isEnding ? 'Ending...' : 'End Sleep'}
+              </Button>
+            </div>
           </>
         ) : (
           <>
-            {/* Start Sleep Controls */}
-            {!showStartForm ? (
-              <div className="space-y-3">
-                <Button
-                  onClick={() => handleStartSleep(true)}
-                  disabled={isStarting}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isStarting ? 'Starting...' : 'Start Sleep Now'}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowStartForm(true)}
-                  className="w-full"
-                >
-                  Set Custom Start Time
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <Input
-                  label="Start Time"
-                  type="datetime-local"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+            {/* Sleep Form */}
+            <div className="space-y-4">
+              <Input
+                label="Start Time"
+                type="datetime-local"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+              />
+              
+              <div className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  id="stillSleeping"
+                  checked={stillSleeping}
+                  onChange={(e) => setStillSleeping(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <div className="flex space-x-3">
-                  <Button
-                    variant="secondary"
-                    onClick={() => setShowStartForm(false)}
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={() => handleStartSleep(false)}
-                    disabled={isStarting || !startTime}
-                    className="flex-1"
-                  >
-                    {isStarting ? 'Starting...' : 'Start Sleep'}
-                  </Button>
-                </div>
+                <label htmlFor="stillSleeping" className="text-sm font-medium text-gray-700">
+                  Still sleeping
+                </label>
               </div>
-            )}
+
+              {!stillSleeping && (
+                <>
+                  <Input
+                    label="End Time"
+                    type="datetime-local"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                  />
+                  <Select
+                    label="Sleep Quality"
+                    value={quality}
+                    onChange={(e) => setQuality(e.target.value)}
+                    options={qualityOptions}
+                  />
+                </>
+              )}
+
+              <Button
+                onClick={handleStartSleep}
+                disabled={isStarting || !startTime || (!stillSleeping && (!endTime || !quality))}
+                className="w-full"
+                size="lg"
+              >
+                {isStarting ? 'Saving...' : 'Save Sleep Session'}
+              </Button>
+            </div>
           </>
         )}
       </div>
