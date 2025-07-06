@@ -1,0 +1,140 @@
+import { useState, useEffect } from 'react'
+import { useChildren, useSleepSessions } from '@/hooks/useSupabase'
+import { useTelegram } from '@/hooks/useTelegram'
+import { Child } from '@/lib/supabase'
+import { calculateAge } from '@/lib/utils'
+import Button from './ui/Button'
+import Card from './ui/Card'
+import SleepTracker from './SleepTracker'
+import SleepPrediction from './SleepPrediction'
+import SleepHistory from './SleepHistory'
+
+interface MainScreenProps {
+  onAddChild: () => void
+}
+
+export default function MainScreen({ onAddChild }: MainScreenProps) {
+  const { children } = useChildren()
+  const { user } = useTelegram()
+  const [selectedChild, setSelectedChild] = useState<Child | null>(null)
+  const { sessions, loading: sessionsLoading, deleteSleepSession, refetch } = useSleepSessions(selectedChild?.id)
+
+  useEffect(() => {
+    if (children.length > 0 && !selectedChild) {
+      setSelectedChild(children[0])
+    }
+  }, [children, selectedChild])
+
+  const activeSession = sessions.find(session => session.is_active)
+
+  if (children.length === 0) {
+    return (
+      <div className="text-center space-y-4">
+        <p className="text-gray-600">No children added yet.</p>
+        <Button onClick={onAddChild}>Add Your First Child</Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <h1 className="text-2xl font-bold text-gray-800">
+          Hello, {user?.first_name || 'Parent'}! 👋
+        </h1>
+        <p className="text-gray-600">
+          Track your baby&apos;s sleep patterns
+        </p>
+      </div>
+
+      {/* Child Profiles */}
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">
+              Your Children
+            </h2>
+            <p className="text-sm text-gray-600">
+              Select a child to view their sleep tracking
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onAddChild}
+          >
+            + Add Child
+          </Button>
+        </div>
+        
+        <div className="space-y-3">
+          {children.map((child) => (
+            <div
+              key={child.id}
+              onClick={() => setSelectedChild(child)}
+              className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                selectedChild?.id === child.id
+                  ? 'border-pink-300 bg-pink-50 shadow-sm'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="text-3xl">
+                    {child.gender === 'male' ? '👦' : '👧'}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800 text-lg">
+                      {child.name}
+                    </h3>
+                    <div className="flex items-center space-x-4 text-sm text-gray-600">
+                      <span>{calculateAge(child.date_of_birth)} months old</span>
+                      <span>•</span>
+                      <span>Born {new Date(child.date_of_birth).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {selectedChild?.id === child.id && (
+                    <div className="text-pink-500 font-medium text-sm">
+                      Selected
+                    </div>
+                  )}
+                  <div className="text-gray-400">
+                    ›
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {selectedChild && (
+        <>
+          {/* Sleep Tracker */}
+          <SleepTracker
+            childId={selectedChild.id}
+            activeSession={activeSession}
+            onSessionUpdate={refetch}
+          />
+
+          {/* Sleep Prediction */}
+          <SleepPrediction
+            childAge={calculateAge(selectedChild.date_of_birth)}
+            recentSessions={sessions.slice(0, 10)}
+            activeSession={activeSession}
+          />
+
+          {/* Sleep History */}
+          <SleepHistory
+            sessions={sessions}
+            loading={sessionsLoading}
+            onDeleteSession={deleteSleepSession}
+          />
+        </>
+      )}
+    </div>
+  )
+}

@@ -1,36 +1,151 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Baby Sleep Tracker & Predictor
 
-## Getting Started
+A web application for tracking baby sleep patterns and getting AI-powered predictions for optimal nap times.
 
-First, run the development server:
+## Features
+
+- 👶 **Child Management**: Add and manage multiple children's profiles
+- 😴 **Sleep Tracking**: Start/end sleep sessions with precise timing
+- 🎯 **Quality Assessment**: Rate sleep quality after each session
+- 🔮 **AI Predictions**: Get personalized sleep predictions using Google Gemini AI
+- 📊 **Sleep History**: Visual history of all sleep sessions
+- 📱 **Mobile-First**: Responsive design optimized for mobile devices
+
+## Tech Stack
+
+- **Framework**: Next.js 15 with TypeScript
+- **Database**: Supabase (PostgreSQL)
+- **AI**: Google Gemini API
+- **Styling**: Tailwind CSS with custom baby-friendly theme
+- **Platform**: Web Application
+
+## Setup Instructions
+
+### 1. Clone the Repository
+
+```bash
+git clone <repository-url>
+cd baby_sleep_prediction
+```
+
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Environment Variables
+
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+Fill in your environment variables:
+
+```env
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+
+# Google Gemini API
+GOOGLE_API_KEY=your_google_api_key_here
+```
+
+### 4. Database Setup
+
+1. Create a new Supabase project
+2. Run the SQL schema from `supabase/schema.sql` in your Supabase SQL editor
+3. Enable Row Level Security (RLS) policies are included in the schema
+
+### 5. Google Gemini API Setup
+
+1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create a new API key
+3. Add the API key to your `.env` file
+
+### 6. Run the Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Database Schema
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The app uses two main tables:
 
-## Learn More
+- **children**: Stores child profiles with user isolation
+- **sleep_sessions**: Stores sleep tracking data with quality ratings
 
-To learn more about Next.js, take a look at the following resources:
+Row Level Security (RLS) ensures each user can only access their own data.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API Endpoints
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `POST /api/predict-sleep` - Generate sleep predictions using AI
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Vercel (Recommended)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Push your code to GitHub
+2. Connect your repo to Vercel
+3. Add environment variables in Vercel dashboard:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `GOOGLE_API_KEY`
+4. Deploy
+
+The `vercel.json` file is already configured for optimal deployment.
+
+## Development
+
+### Project Structure
+
+```
+src/
+├── app/                 # Next.js app router
+├── components/          # React components
+│   ├── ui/             # Reusable UI components
+│   └── ...             # Feature components
+├── hooks/              # Custom React hooks
+├── lib/                # Utility libraries
+│   ├── supabase.ts     # Database client
+│   ├── telegram.ts     # Telegram WebApp integration
+│   ├── gemini.ts       # AI prediction service
+│   └── utils.ts        # General utilities
+└── ...
+```
+
+### Key Components
+
+- **WelcomeScreen**: First-time user onboarding
+- **AddChildForm**: Child profile creation
+- **MainScreen**: Main dashboard with child selection
+- **SleepTracker**: Sleep session management
+- **SleepPrediction**: AI-powered sleep predictions
+- **SleepHistory**: Historical sleep data visualization
+
+### Web Application Features
+
+The app includes modern web application features:
+
+- Local storage-based user identification
+- Responsive design for mobile and desktop
+- Progressive web app (PWA) capabilities
+- Native browser alerts and confirmations
+- Mobile-optimized touch interactions
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.

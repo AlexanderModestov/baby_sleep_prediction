@@ -1,0 +1,21 @@
+{
+  "name": "Baby Sleep Tracker",
+  "short_name": "Sleep Tracker",
+  "description": "Track your baby's sleep patterns and get AI-powered predictions",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fef7f0",
+  "theme_color": "#f093fb",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png", 
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
