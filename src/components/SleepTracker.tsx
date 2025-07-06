@@ -98,7 +98,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
       // Convert local datetime to UTC for server
       const sleepEndTime = endTime ? new Date(endTime).toISOString() : new Date().toISOString()
       
-      await endSleepSession(activeSession.id, sleepEndTime, quality as "excellent" | "good" | "average" | "poor" | "very_poor" | null)
+      await endSleepSession(activeSession.id, sleepEndTime, quality || undefined)
       
       setEndTime('')
       setQuality('')
