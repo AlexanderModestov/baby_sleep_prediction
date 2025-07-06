@@ -65,7 +65,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
         start_time: sleepStartTime,
         end_time: sleepEndTime,
         duration_minutes: sleepEndTime ? Math.floor((new Date(sleepEndTime).getTime() - new Date(sleepStartTime).getTime()) / (1000 * 60)) : null,
-        quality: stillSleeping ? null : quality,
+        quality: stillSleeping ? null : (quality as "excellent" | "good" | "average" | "poor" | "very_poor" | null),
         session_type: getSessionType(sleepStartTime),
         is_active: stillSleeping
       })
@@ -98,7 +98,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
       // Convert local datetime to UTC for server
       const sleepEndTime = endTime ? new Date(endTime).toISOString() : new Date().toISOString()
       
-      await endSleepSession(activeSession.id, sleepEndTime, quality)
+      await endSleepSession(activeSession.id, sleepEndTime, quality as "excellent" | "good" | "average" | "poor" | "very_poor" | null)
       
       setEndTime('')
       setQuality('')
