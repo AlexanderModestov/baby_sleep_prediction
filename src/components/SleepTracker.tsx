@@ -7,6 +7,7 @@ import Button from './ui/Button'
 import Card from './ui/Card'
 import Input from './ui/Input'
 import Select from './ui/Select'
+import Modal from './ui/Modal'
 
 interface SleepTrackerProps {
   childId: string
@@ -16,7 +17,7 @@ interface SleepTrackerProps {
 
 export default function SleepTracker({ childId, activeSession, onSessionUpdate }: SleepTrackerProps) {
   const { startSleepSession, endSleepSession } = useSleepSessions(childId)
-  const { showAlert, hapticFeedback } = useTelegram()
+  const { showAlert, hapticFeedback, alertModal } = useTelegram()
   const [isStarting, setIsStarting] = useState(false)
   const [isEnding, setIsEnding] = useState(false)
   const [startTime, setStartTime] = useState('')
@@ -52,6 +53,28 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
   }, [activeSession, currentTime, endTime])
 
   const handleStartSleep = async () => {
+    // Validate timestamps are not in the future
+    const now = new Date()
+    const startTimeDate = new Date(startTime)
+    
+    if (startTimeDate > now) {
+      showAlert('Start time cannot be in the future. Please select a valid time.')
+      return
+    }
+    
+    if (!stillSleeping && endTime) {
+      const endTimeDate = new Date(endTime)
+      if (endTimeDate > now) {
+        showAlert('End time cannot be in the future. Please select a valid time.')
+        return
+      }
+      
+      if (endTimeDate <= startTimeDate) {
+        showAlert('End time must be after start time. Please select a valid time.')
+        return
+      }
+    }
+
     setIsStarting(true)
     hapticFeedback()
 
@@ -60,11 +83,14 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
       const sleepStartTime = startTime ? new Date(startTime).toISOString() : new Date().toISOString()
       const sleepEndTime = stillSleeping ? null : (endTime ? new Date(endTime).toISOString() : null)
       
+      // Calculate duration using the original local datetime strings to avoid timezone conversion issues
+      const durationMinutes = sleepEndTime ? Math.floor((new Date(endTime).getTime() - new Date(startTime).getTime()) / (1000 * 60)) : null
+      
       await startSleepSession({
         child_id: childId,
         start_time: sleepStartTime,
         end_time: sleepEndTime,
-        duration_minutes: sleepEndTime ? Math.floor((new Date(sleepEndTime).getTime() - new Date(sleepStartTime).getTime()) / (1000 * 60)) : null,
+        duration_minutes: durationMinutes,
         quality: stillSleeping ? null : (quality as "excellent" | "good" | "average" | "poor" | "very_poor" | null),
         session_type: getSessionType(sleepStartTime),
         is_active: stillSleeping
@@ -90,6 +116,21 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
 
   const handleEndSleep = async () => {
     if (!activeSession) return
+
+    // Validate end time is not in the future
+    const now = new Date()
+    const endTimeDate = new Date(endTime)
+    const startTimeDate = new Date(activeSession.start_time)
+    
+    if (endTimeDate > now) {
+      showAlert('End time cannot be in the future. Please select a valid time.')
+      return
+    }
+    
+    if (endTimeDate <= startTimeDate) {
+      showAlert('End time must be after start time. Please select a valid time.')
+      return
+    }
 
     setIsEnding(true)
     hapticFeedback()
@@ -127,6 +168,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
   ]
 
   return (
+    <>
     <Card>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -161,6 +203,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
                 label="End Time"
                 type="datetime-local"
                 value={endTime}
+                max={currentTime ? new Date(currentTime.getTime() - currentTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : undefined}
                 onChange={(e) => setEndTime(e.target.value)}
               />
               <Select
@@ -186,6 +229,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
                 label="Start Time"
                 type="datetime-local"
                 value={startTime}
+                max={currentTime ? new Date(currentTime.getTime() - currentTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : undefined}
                 onChange={(e) => setStartTime(e.target.value)}
               />
               
@@ -208,6 +252,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
                     label="End Time"
                     type="datetime-local"
                     value={endTime}
+                    max={currentTime ? new Date(currentTime.getTime() - currentTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : undefined}
                     onChange={(e) => setEndTime(e.target.value)}
                   />
                   <Select
@@ -232,5 +277,15 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
         )}
       </div>
     </Card>
+
+    {/* Validation Alert Modal */}
+    <Modal
+      isOpen={alertModal.isOpen}
+      onClose={alertModal.onClose}
+      title="Invalid Time"
+    >
+      <p className="text-gray-700">{alertModal.message}</p>
+    </Modal>
+  </>
   )
 }

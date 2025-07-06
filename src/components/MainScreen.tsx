@@ -17,7 +17,26 @@ export default function MainScreen({ onAddChild }: MainScreenProps) {
   const { children } = useChildren()
   const { user } = useTelegram()
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [lastDeletedId, setLastDeletedId] = useState<string | null>(null)
   const { sessions, loading: sessionsLoading, deleteSleepSession, refetch } = useSleepSessions(selectedChild?.id)
+
+  const handleDeleteSession = async (sessionId: string) => {
+    setLastDeletedId(sessionId)
+    await deleteSleepSession(sessionId)
+  }
+
+  // Trigger prediction refresh after sessions array updates
+  useEffect(() => {
+    if (lastDeletedId) {
+      // Check if the session was actually removed from the array
+      const sessionExists = sessions.some(s => s.id === lastDeletedId)
+      if (!sessionExists) {
+        setRefreshTrigger(prev => prev + 1)
+        setLastDeletedId(null)
+      }
+    }
+  }, [sessions, lastDeletedId])
 
   useEffect(() => {
     if (children.length > 0 && !selectedChild) {
@@ -125,13 +144,14 @@ export default function MainScreen({ onAddChild }: MainScreenProps) {
             childAge={calculateAge(selectedChild.date_of_birth)}
             recentSessions={sessions.slice(0, 10)}
             activeSession={activeSession}
+            refreshTrigger={refreshTrigger}
           />
 
           {/* Sleep History */}
           <SleepHistory
             sessions={sessions}
             loading={sessionsLoading}
-            onDeleteSession={deleteSleepSession}
+            onDeleteSession={handleDeleteSession}
           />
         </>
       )}

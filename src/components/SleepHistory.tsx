@@ -4,6 +4,7 @@ import { formatDate, formatTime, formatDuration, getQualityColor, getQualityLabe
 import { useTelegram } from '@/hooks/useTelegram'
 import Card from './ui/Card'
 import Button from './ui/Button'
+import Modal from './ui/Modal'
 
 interface SleepHistoryProps {
   sessions: SleepSession[]
@@ -12,7 +13,7 @@ interface SleepHistoryProps {
 }
 
 export default function SleepHistory({ sessions, loading, onDeleteSession }: SleepHistoryProps) {
-  const { showConfirm, showAlert } = useTelegram()
+  const { showConfirm, showAlert, alertModal, confirmModal } = useTelegram()
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const handleDelete = async (session: SleepSession) => {
@@ -77,12 +78,13 @@ export default function SleepHistory({ sessions, loading, onDeleteSession }: Sle
   )
 
   return (
-    <Card>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-800">Sleep History</h2>
-          <div className="text-2xl">📊</div>
-        </div>
+    <>
+      <Card>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-800">Sleep History</h2>
+            <div className="text-2xl">📊</div>
+          </div>
 
         <div className="space-y-4">
           {sortedDates.map((date) => (
@@ -170,5 +172,29 @@ export default function SleepHistory({ sessions, loading, onDeleteSession }: Sle
         )}
       </div>
     </Card>
+
+    {/* Alert Modal */}
+    <Modal
+      isOpen={alertModal.isOpen}
+      onClose={alertModal.onClose}
+      title="Sleep Tracker"
+    >
+      <p className="text-gray-700">{alertModal.message}</p>
+    </Modal>
+
+    {/* Confirm Modal */}
+    <Modal
+      isOpen={confirmModal.isOpen}
+      onClose={confirmModal.onCancel}
+      title="Delete Sleep Session"
+      onConfirm={confirmModal.onConfirm}
+      confirmText="Delete"
+      cancelText="Cancel"
+      confirmVariant="danger"
+      isLoading={deletingId !== null}
+    >
+      <p className="text-gray-700">{confirmModal.message}</p>
+    </Modal>
+  </>
   )
 }

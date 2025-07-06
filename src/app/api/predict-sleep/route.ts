@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { SleepSession } from '@/lib/supabase'
 
 const apiKey = process.env.GOOGLE_API_KEY
+const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash'
 
 if (!apiKey) {
   console.error('GOOGLE_API_KEY environment variable is not set')
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
       throw new Error('Google API key is not configured')
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const model = genAI.getGenerativeModel({ model: modelName })
 
     const prompt = `
 You are a pediatric sleep expert. Based on the following sleep data for a ${childAge}-month-old baby, predict their next optimal sleep time.
@@ -50,7 +51,28 @@ Consider:
 - Typical wake windows for this age
 `
 
-    const result = await model.generateContent(prompt)
+    // Add retry logic for rate limiting
+    let result
+    let retryCount = 0
+    const maxRetries = 3
+    
+    while (retryCount < maxRetries) {
+      try {
+        result = await model.generateContent(prompt)
+        break // Success, exit retry loop
+      } catch (error: any) {
+        if (error.status === 429 && retryCount < maxRetries - 1) {
+          // Rate limited, wait and retry
+          const waitTime = Math.pow(2, retryCount) * 1000 // Exponential backoff: 1s, 2s, 4s
+          console.log(`Rate limited, retrying in ${waitTime}ms...`)
+          await new Promise(resolve => setTimeout(resolve, waitTime))
+          retryCount++
+        } else {
+          throw error // Re-throw if not rate limit or max retries reached
+        }
+      }
+    }
+    
     const response = await result.response
     const text = response.text()
 

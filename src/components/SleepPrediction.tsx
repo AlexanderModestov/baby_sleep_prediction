@@ -8,12 +8,14 @@ interface SleepPredictionProps {
   childAge: number
   recentSessions: SleepSession[]
   activeSession?: SleepSession
+  refreshTrigger?: number
 }
 
 export default function SleepPrediction({ 
   childAge, 
   recentSessions, 
-  activeSession 
+  activeSession,
+  refreshTrigger 
 }: SleepPredictionProps) {
   const [prediction, setPrediction] = useState<PredictionType | null>(null)
   const [loading, setLoading] = useState(false)
@@ -21,24 +23,38 @@ export default function SleepPrediction({
 
   useEffect(() => {
     const loadPrediction = async () => {
-      if (activeSession || recentSessions.length === 0) return
+      console.log('SleepPrediction useEffect triggered:', {
+        activeSession: !!activeSession,
+        recentSessionsCount: recentSessions.length,
+        refreshTrigger,
+        childAge
+      })
+      
+      if (activeSession || recentSessions.length === 0) {
+        console.log('Skipping prediction: activeSession or no recent sessions')
+        return
+      }
 
+      console.log('Loading new prediction...')
       setLoading(true)
       setError(null)
 
       try {
         const result = await predictNextSleep(childAge, recentSessions)
+        console.log('Prediction loaded successfully:', result)
         setPrediction(result)
       } catch (err) {
-        setError('Failed to load sleep prediction')
+        setError('Prediction temporarily unavailable due to high demand. Please try again in a few minutes.')
         console.error('Prediction error:', err)
       } finally {
         setLoading(false)
       }
     }
 
-    loadPrediction()
-  }, [childAge, recentSessions, activeSession])
+    // Debounce the prediction requests to avoid rapid calls
+    const timeoutId = setTimeout(loadPrediction, 500)
+    return () => clearTimeout(timeoutId)
+  }, [childAge, recentSessions, activeSession, refreshTrigger])
 
   const getTimeSinceLastSleep = () => {
     if (recentSessions.length === 0) return null

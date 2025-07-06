@@ -3,6 +3,22 @@ import { useEffect, useState } from 'react'
 export function useTelegram() {
   const [user, setUser] = useState<{ id: number; first_name: string } | null>(null)
   const [isReady, setIsReady] = useState(false)
+  const [alertModal, setAlertModal] = useState<{ isOpen: boolean; message: string; onClose: () => void }>({
+    isOpen: false,
+    message: '',
+    onClose: () => {}
+  })
+  const [confirmModal, setConfirmModal] = useState<{ 
+    isOpen: boolean; 
+    message: string; 
+    onConfirm: () => void; 
+    onCancel: () => void 
+  }>({
+    isOpen: false,
+    message: '',
+    onConfirm: () => {},
+    onCancel: () => {}
+  })
 
   useEffect(() => {
     // Initialize with a default user for web app
@@ -11,12 +27,32 @@ export function useTelegram() {
   }, [])
 
   const showAlert = (message: string) => {
-    alert(message)
+    setAlertModal({
+      isOpen: true,
+      message,
+      onClose: () => setAlertModal(prev => ({ ...prev, isOpen: false }))
+    })
+    
+    // Auto-hide after 1 second
+    setTimeout(() => {
+      setAlertModal(prev => ({ ...prev, isOpen: false }))
+    }, 1000)
   }
 
   const showConfirm = (message: string): Promise<boolean> => {
     return new Promise((resolve) => {
-      resolve(confirm(message))
+      setConfirmModal({
+        isOpen: true,
+        message,
+        onConfirm: () => {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }))
+          resolve(true)
+        },
+        onCancel: () => {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }))
+          resolve(false)
+        }
+      })
     })
   }
 
@@ -30,6 +66,8 @@ export function useTelegram() {
     isReady,
     showAlert,
     showConfirm,
-    hapticFeedback
+    hapticFeedback,
+    alertModal,
+    confirmModal
   }
 }
