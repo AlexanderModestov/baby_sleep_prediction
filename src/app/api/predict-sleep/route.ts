@@ -74,6 +74,10 @@ Consider:
       }
     }
     
+    if (!result) {
+      throw new Error('Failed to generate content after retries')
+    }
+    
     const response = await result.response
     const text = response.text()
 
