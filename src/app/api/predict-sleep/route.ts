@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
+import { SleepSession } from '@/lib/supabase'
 
 const apiKey = process.env.GOOGLE_API_KEY
 
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
 You are a pediatric sleep expert. Based on the following sleep data for a ${childAge}-month-old baby, predict their next optimal sleep time.
 
 Sleep History (last 7 days):
-${sleepHistory.map((session: any) => `
+${sleepHistory.map((session: SleepSession) => `
 - Start: ${session.start_time}
 - End: ${session.end_time || 'Still sleeping'}
 - Duration: ${session.duration_minutes ? Math.round(session.duration_minutes / 60 * 100) / 100 : 'N/A'} hours

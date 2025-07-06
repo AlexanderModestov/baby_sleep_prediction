@@ -42,7 +42,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
 
   const handleStartSleep = async (useNow = true) => {
     setIsStarting(true)
-    hapticFeedback('light')
+    hapticFeedback()
 
     try {
       const sleepStartTime = useNow ? new Date().toISOString() : startTime
@@ -61,7 +61,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
       setStartTime('')
       onSessionUpdate?.()
     } catch {
-      hapticFeedback('heavy')
+      hapticFeedback()
       showAlert('Failed to start sleep session. Please try again.')
     } finally {
       setIsStarting(false)
@@ -80,7 +80,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
     }
 
     setIsEnding(true)
-    hapticFeedback('light')
+    hapticFeedback()
 
     try {
       const sleepEndTime = endTime || new Date().toISOString()
@@ -92,7 +92,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
       setQuality('')
       onSessionUpdate?.()
     } catch {
-      hapticFeedback('heavy')
+      hapticFeedback()
       showAlert('Failed to end sleep session. Please try again.')
     } finally {
       setIsEnding(false)

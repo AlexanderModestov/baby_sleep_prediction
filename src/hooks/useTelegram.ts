@@ -20,7 +20,7 @@ export function useTelegram() {
     })
   }
 
-  const hapticFeedback = (_type: 'light' | 'medium' | 'heavy' = 'light') => {
+  const hapticFeedback = () => {
     // No haptic feedback for web app
     return
   }

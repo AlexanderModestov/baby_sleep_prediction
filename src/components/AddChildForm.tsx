@@ -51,7 +51,7 @@ export default function AddChildForm({ onBack, onSuccess }: AddChildFormProps) {
     e.preventDefault()
     
     if (!validateForm()) {
-      hapticFeedback('medium')
+      hapticFeedback()
       return
     }
 
@@ -64,10 +64,10 @@ export default function AddChildForm({ onBack, onSuccess }: AddChildFormProps) {
         gender: formData.gender as 'male' | 'female'
       })
       
-      hapticFeedback('light')
+      hapticFeedback()
       onSuccess()
     } catch {
-      hapticFeedback('heavy')
+      hapticFeedback()
       showAlert('Failed to add child. Please try again.')
     } finally {
       setLoading(false)
