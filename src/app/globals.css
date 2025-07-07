@@ -8,6 +8,33 @@
   --accent: #a8e6cf;
 }
 
+/* Professional/Corporate theme fallback */
+@media (prefers-color-scheme: dark), (prefers-contrast: high) {
+  :root {
+    --primary: #3b82f6;
+    --secondary: #64748b;
+    --accent: #10b981;
+  }
+}
+
+/* Alternative professional color scheme */
+[data-theme="professional"] {
+  --background: #ffffff;
+  --foreground: #1f2937;
+  --primary: #3b82f6;
+  --secondary: #6b7280;
+  --accent: #10b981;
+}
+
+/* Safe color scheme for restricted environments */
+[data-theme="safe"] {
+  --background: #f8fafc;
+  --foreground: #334155;
+  --primary: #1e40af;
+  --secondary: #64748b;
+  --accent: #059669;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -30,7 +57,7 @@ body {
 }
 
 .gradient-bg {
-  background: linear-gradient(135deg, #f093fb 0%, #f5c2c7 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
 }
 
 .sleep-card {
@@ -43,7 +70,7 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #f093fb 0%, #f5c2c7 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
   color: white;
   border: none;
   border-radius: 12px;
@@ -55,7 +82,7 @@ body {
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3);
+  box-shadow: 0 4px 12px rgba(var(--primary), 0.3);
 }
 
 .btn-secondary {
@@ -72,4 +99,33 @@ body {
 .btn-secondary:hover {
   background: #f7fafc;
   border-color: #cbd5e0;
+}
+
+/* Theme-aware utility classes */
+.bg-primary {
+  background-color: var(--primary);
+}
+
+.bg-secondary {
+  background-color: var(--secondary);
+}
+
+.text-primary {
+  color: var(--primary);
+}
+
+.border-primary {
+  border-color: var(--primary);
+}
+
+.bg-primary-light {
+  background-color: color-mix(in srgb, var(--primary) 10%, white);
+}
+
+.bg-secondary-light {
+  background-color: color-mix(in srgb, var(--secondary) 10%, white);
+}
+
+.gradient-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
 }
