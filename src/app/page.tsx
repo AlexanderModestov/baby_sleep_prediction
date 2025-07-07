@@ -6,13 +6,16 @@ import { useChildren } from '@/hooks/useSupabase'
 import Card from '@/components/ui/Card'
 import WelcomeScreen from '@/components/WelcomeScreen'
 import AddChildForm from '@/components/AddChildForm'
+import EditChildForm from '@/components/EditChildForm'
 import MainScreen from '@/components/MainScreen'
 import ClientOnly from '@/components/ClientOnly'
+import { Child } from '@/lib/supabase'
 
 function AppContent() {
   const { isReady } = useTelegram()
   const { children, loading } = useChildren()
-  const [currentView, setCurrentView] = useState<'welcome' | 'add-child' | 'main'>('welcome')
+  const [currentView, setCurrentView] = useState<'welcome' | 'add-child' | 'edit-child' | 'main'>('welcome')
+  const [editingChild, setEditingChild] = useState<Child | null>(null)
 
   useEffect(() => {
     if (isReady && !loading) {
@@ -48,9 +51,21 @@ function AppContent() {
         />
       )}
       
+      {currentView === 'edit-child' && editingChild && (
+        <EditChildForm 
+          child={editingChild}
+          onBack={() => setCurrentView('main')}
+          onSuccess={() => setCurrentView('main')}
+        />
+      )}
+      
       {currentView === 'main' && (
         <MainScreen 
           onAddChild={() => setCurrentView('add-child')}
+          onEditChild={(child) => {
+            setEditingChild(child)
+            setCurrentView('edit-child')
+          }}
         />
       )}
     </div>

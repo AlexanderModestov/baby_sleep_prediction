@@ -5,15 +5,17 @@ import { Child } from '@/lib/supabase'
 import { calculateAge } from '@/lib/utils'
 import Button from './ui/Button'
 import Card from './ui/Card'
+import Select from './ui/Select'
 import SleepTracker from './SleepTracker'
 import SleepPrediction from './SleepPrediction'
 import SleepHistory from './SleepHistory'
 
 interface MainScreenProps {
   onAddChild: () => void
+  onEditChild: (child: Child) => void
 }
 
-export default function MainScreen({ onAddChild }: MainScreenProps) {
+export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps) {
   const { children } = useChildren()
   const { user } = useTelegram()
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
@@ -67,12 +69,12 @@ export default function MainScreen({ onAddChild }: MainScreenProps) {
         </p>
       </div>
 
-      {/* Child Profiles */}
+      {/* Child Selection */}
       <Card>
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-800">
-              Your Children
+              Child Selection
             </h2>
             <p className="text-sm text-gray-600">
               Select a child to view their sleep tracking
@@ -87,46 +89,48 @@ export default function MainScreen({ onAddChild }: MainScreenProps) {
           </Button>
         </div>
         
-        <div className="space-y-3">
-          {children.map((child) => (
-            <div
-              key={child.id}
-              onClick={() => setSelectedChild(child)}
-              className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
-                selectedChild?.id === child.id
-                  ? 'border-pink-300 bg-pink-50 shadow-sm'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
+        <div className="space-y-4">
+          <Select
+            label="Select Child"
+            value={selectedChild?.id || ''}
+            onChange={(e) => {
+              const child = children.find(c => c.id === e.target.value)
+              setSelectedChild(child || null)
+            }}
+            options={children.map(child => ({
+              value: child.id,
+              label: child.name
+            }))}
+          />
+          
+          {selectedChild && (
+            <div className="p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <div className="text-3xl">
-                    {child.gender === 'male' ? '👦' : '👧'}
+                    {selectedChild.gender === 'male' ? '👦' : '👧'}
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-800 text-lg">
-                      {child.name}
+                      {selectedChild.name}
                     </h3>
                     <div className="flex items-center space-x-4 text-sm text-gray-600">
-                      <span>{calculateAge(child.date_of_birth)} months old</span>
+                      <span>{calculateAge(selectedChild.date_of_birth)} months old</span>
                       <span>•</span>
-                      <span>Born {new Date(child.date_of_birth).toLocaleDateString()}</span>
+                      <span>Born {new Date(selectedChild.date_of_birth).toLocaleDateString()}</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  {selectedChild?.id === child.id && (
-                    <div className="text-pink-500 font-medium text-sm">
-                      Selected
-                    </div>
-                  )}
-                  <div className="text-gray-400">
-                    ›
-                  </div>
-                </div>
+                <button
+                  onClick={() => onEditChild(selectedChild)}
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded-lg transition-colors"
+                  title="Edit child"
+                >
+                  ✏️
+                </button>
               </div>
             </div>
-          ))}
+          )}
         </div>
       </Card>
 

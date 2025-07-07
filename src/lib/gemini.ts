@@ -5,6 +5,7 @@ export interface SleepPrediction {
   timeUntilBedtime: string
   expectedDuration: string
   confidence: number
+  summary: string
   reasoning: string
 }
 
@@ -35,9 +36,10 @@ export async function predictNextSleep(
     // Return fallback prediction
     return {
       nextBedtime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-      timeUntilBedtime: '2 hours',
-      expectedDuration: '2 hours',
+      timeUntilBedtime: '2 hours 0 minutes',
+      expectedDuration: '2 hours 0 minutes',
       confidence: 0.5,
+      summary: 'Baby should be ready for sleep in about 2 hours based on typical patterns.',
       reasoning: 'Using default prediction due to AI service unavailability'
     }
   }

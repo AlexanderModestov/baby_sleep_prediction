@@ -37,10 +37,11 @@ ${sleepHistory.map((session: SleepSession) => `
 Please provide a prediction in the following JSON format:
 {
   "nextBedtime": "ISO timestamp",
-  "timeUntilBedtime": "human readable time like '2 hours 30 minutes'",
-  "expectedDuration": "expected sleep duration like '2 hours'",
+  "timeUntilBedtime": "human readable time in format 'X hours Y minutes' (e.g., '2 hours 30 minutes', '1 hour 15 minutes', or '45 minutes')",
+  "expectedDuration": "expected sleep duration in format 'X hours Y minutes' (e.g., '2 hours', '1 hour 30 minutes')",
   "confidence": 0.85,
-  "reasoning": "Brief explanation of the prediction"
+  "summary": "2-3 sentence clear and concise recommendation for parents",
+  "reasoning": "Detailed explanation of the prediction including analysis of sleep patterns, age considerations, and specific recommendations"
 }
 
 Consider:
@@ -49,6 +50,9 @@ Consider:
 - Time of day
 - Sleep quality trends
 - Typical wake windows for this age
+
+For the summary field: Provide a brief, parent-friendly recommendation in 2-3 sentences.
+For the reasoning field: Provide a comprehensive analysis including sleep pattern trends, age-appropriate considerations, and detailed recommendations.
 `
 
     // Add retry logic for rate limiting
@@ -95,9 +99,10 @@ Consider:
     // Return fallback prediction
     const fallback = {
       nextBedtime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-      timeUntilBedtime: '2 hours',
-      expectedDuration: '2 hours',
+      timeUntilBedtime: '2 hours 0 minutes',
+      expectedDuration: '2 hours 0 minutes',
       confidence: 0.5,
+      summary: 'Baby should be ready for sleep in about 2 hours based on typical patterns.',
       reasoning: 'Using default prediction due to AI service unavailability'
     }
     
