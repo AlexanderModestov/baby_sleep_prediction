@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useTelegram } from '@/hooks/useTelegram'
 import { useChildren } from '@/hooks/useSupabase'
+import { useAutoTheme } from '@/hooks/useAutoTheme'
 import Card from '@/components/ui/Card'
 import WelcomeScreen from '@/components/WelcomeScreen'
 import AddChildForm from '@/components/AddChildForm'
@@ -16,6 +17,9 @@ function AppContent() {
   const { children, loading } = useChildren()
   const [currentView, setCurrentView] = useState<'welcome' | 'add-child' | 'edit-child' | 'main'>('welcome')
   const [editingChild, setEditingChild] = useState<Child | null>(null)
+  
+  // Automatically detect and apply appropriate theme
+  useAutoTheme()
 
   useEffect(() => {
     if (isReady && !loading) {

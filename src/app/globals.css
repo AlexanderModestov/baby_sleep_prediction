@@ -8,12 +8,12 @@
   --accent: #a8e6cf;
 }
 
-/* Professional/Corporate theme fallback */
-@media (prefers-color-scheme: dark), (prefers-contrast: high) {
+/* Automatic fallback for restricted environments */
+@media (prefers-contrast: high) {
   :root {
-    --primary: #3b82f6;
-    --secondary: #64748b;
-    --accent: #10b981;
+    --primary: #1e40af;
+    --secondary: #475569;
+    --accent: #047857;
   }
 }
 

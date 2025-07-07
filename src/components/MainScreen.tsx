@@ -6,7 +6,6 @@ import { calculateAge } from '@/lib/utils'
 import Button from './ui/Button'
 import Card from './ui/Card'
 import Select from './ui/Select'
-import ThemeSelector from './ThemeSelector'
 import SleepTracker from './SleepTracker'
 import SleepPrediction from './SleepPrediction'
 import SleepHistory from './SleepHistory'
@@ -91,8 +90,6 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
         </div>
         
         <div className="space-y-4">
-          <ThemeSelector />
-          
           <Select
             label="Select Child"
             value={selectedChild?.id || ''}
@@ -107,7 +104,7 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
           />
           
           {selectedChild && (
-            <div className="p-4 bg-primary-light rounded-xl border border-primary">
+            <div className="p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <div className="text-3xl">
