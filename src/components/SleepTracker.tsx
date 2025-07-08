@@ -25,6 +25,8 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
   const [quality, setQuality] = useState('')
   const [stillSleeping, setStillSleeping] = useState(true)
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
+  const [startTimeManuallySet, setStartTimeManuallySet] = useState(false)
+  const [isUserSelectingStartTime, setIsUserSelectingStartTime] = useState(false)
   const [validationErrors, setValidationErrors] = useState<{
     endTime?: string
     quality?: string
@@ -56,15 +58,16 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
         if (activeSession) {
           // Update end time to current time continuously when there's an active session
           setEndTime(localDateTime)
-        } else {
+        } else if (!startTimeManuallySet && !isUserSelectingStartTime) {
           // Update start time to current time continuously when there's no active session
+          // and user hasn't manually set the start time and user is not currently selecting
           setStartTime(localDateTime)
         }
       }, 1000)
       
       return () => clearInterval(timer)
     }
-  }, [activeSession, currentTime])
+  }, [activeSession, currentTime, startTimeManuallySet, isUserSelectingStartTime])
 
   const handleStartSleep = async () => {
     // Clear previous errors
@@ -85,19 +88,13 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
       errors.quality = 'Please select sleep quality'
     }
 
-    // Validate timestamps are not in the future
-    const now = new Date()
-    if (startTime) {
-      const startTimeDate = new Date(startTime)
-      if (startTimeDate > now) {
-        errors.startTime = 'Start time cannot be in the future'
-      }
-    }
+    // Remove future time validation for start time to allow any time selection
     
     if (!stillSleeping && endTime) {
       const endTimeDate = new Date(endTime)
       const startTimeDate = new Date(startTime)
       
+      const now = new Date()
       if (endTimeDate > now) {
         errors.endTime = 'End time cannot be in the future'
       } else if (endTimeDate <= startTimeDate) {
@@ -142,6 +139,8 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
         const now = new Date()
         const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
         setStartTime(localDateTime)
+        setStartTimeManuallySet(false) // Reset manual flag
+        setIsUserSelectingStartTime(false) // Reset selection flag
         setEndTime('')
         setQuality('')
         setStillSleeping(true)
@@ -313,9 +312,16 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
                 label="Start Time"
                 type="datetime-local"
                 value={startTime}
-                max={currentTime ? new Date(currentTime.getTime() - currentTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : undefined}
+                onFocus={() => {
+                  setIsUserSelectingStartTime(true)
+                  setStartTimeManuallySet(true)
+                }}
+                onBlur={() => {
+                  setIsUserSelectingStartTime(false)
+                }}
                 onChange={(e) => {
                   setStartTime(e.target.value)
+                  setStartTimeManuallySet(true)
                   clearError('startTime')
                 }}
                 error={validationErrors.startTime}
