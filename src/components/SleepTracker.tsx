@@ -25,6 +25,16 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
   const [quality, setQuality] = useState('')
   const [stillSleeping, setStillSleeping] = useState(true)
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
+  const [validationErrors, setValidationErrors] = useState<{
+    endTime?: string
+    quality?: string
+    startTime?: string
+  }>({})
+
+  // Debug log to see validation errors
+  useEffect(() => {
+    console.log('Current validation errors:', validationErrors)
+  }, [validationErrors])
 
   useEffect(() => {
     // Initialize current time on client
@@ -36,43 +46,74 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
   }, [])
 
   useEffect(() => {
-    if (activeSession && currentTime) {
+    if (currentTime) {
       const timer = setInterval(() => {
-        setCurrentTime(new Date())
-      }, 1000)
-      
-      // Initialize end time with current local time when there's an active session
-      if (!endTime) {
         const now = new Date()
+        setCurrentTime(now)
+        
         const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
-        setEndTime(localDateTime)
-      }
+        
+        if (activeSession) {
+          // Update end time to current time continuously when there's an active session
+          setEndTime(localDateTime)
+        } else {
+          // Update start time to current time continuously when there's no active session
+          setStartTime(localDateTime)
+        }
+      }, 1000)
       
       return () => clearInterval(timer)
     }
-  }, [activeSession, currentTime, endTime])
+  }, [activeSession, currentTime])
 
   const handleStartSleep = async () => {
+    // Clear previous errors
+    setValidationErrors({})
+    
+    const errors: typeof validationErrors = {}
+    
+    // Validate required fields
+    if (!startTime) {
+      errors.startTime = 'Please select a start time'
+    }
+    
+    if (!stillSleeping && !endTime) {
+      errors.endTime = 'Please select an end time'
+    }
+    
+    if (!stillSleeping && !quality) {
+      errors.quality = 'Please select sleep quality'
+    }
+
     // Validate timestamps are not in the future
     const now = new Date()
-    const startTimeDate = new Date(startTime)
-    
-    if (startTimeDate > now) {
-      showAlert('Start time cannot be in the future. Please select a valid time.')
-      return
+    if (startTime) {
+      const startTimeDate = new Date(startTime)
+      if (startTimeDate > now) {
+        errors.startTime = 'Start time cannot be in the future'
+      }
     }
     
     if (!stillSleeping && endTime) {
       const endTimeDate = new Date(endTime)
-      if (endTimeDate > now) {
-        showAlert('End time cannot be in the future. Please select a valid time.')
-        return
-      }
+      const startTimeDate = new Date(startTime)
       
-      if (endTimeDate <= startTimeDate) {
-        showAlert('End time must be after start time. Please select a valid time.')
-        return
+      if (endTimeDate > now) {
+        errors.endTime = 'End time cannot be in the future'
+      } else if (endTimeDate <= startTimeDate) {
+        errors.endTime = 'End time must be after start time'
       }
+    }
+    
+    // If there are errors, show them and return
+    if (Object.keys(errors).length > 0) {
+      console.log('Validation errors:', errors) // Debug log
+      setValidationErrors(errors)
+      hapticFeedback()
+      // Also show an alert for immediate feedback
+      const firstError = Object.values(errors)[0]
+      showAlert(firstError)
+      return
     }
 
     setIsStarting(true)
@@ -115,7 +156,30 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
   }
 
   const handleEndSleep = async () => {
+    console.log('handleEndSleep called') // Debug
+    console.log('Current quality value:', quality) // Debug
+    
     if (!activeSession) return
+
+    // Simple validation check
+    if (!quality) {
+      console.log('Quality is missing, showing error') // Debug
+      setValidationErrors({ quality: 'Please select sleep quality' })
+      showAlert('Please select sleep quality before ending the session.')
+      hapticFeedback()
+      return
+    }
+
+    if (!endTime) {
+      console.log('End time is missing, showing error') // Debug
+      setValidationErrors({ endTime: 'Please select an end time' })
+      showAlert('Please select an end time for the sleep session.')
+      hapticFeedback()
+      return
+    }
+
+    // Clear any previous errors
+    setValidationErrors({})
 
     // Validate end time is not in the future
     const now = new Date()
@@ -123,11 +187,13 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
     const startTimeDate = new Date(activeSession.start_time)
     
     if (endTimeDate > now) {
+      setValidationErrors({ endTime: 'End time cannot be in the future' })
       showAlert('End time cannot be in the future. Please select a valid time.')
       return
     }
     
     if (endTimeDate <= startTimeDate) {
+      setValidationErrors({ endTime: 'End time must be after start time' })
       showAlert('End time must be after start time. Please select a valid time.')
       return
     }
@@ -157,6 +223,16 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
     const start = new Date(activeSession.start_time)
     const now = currentTime
     return Math.floor((now.getTime() - start.getTime()) / (1000 * 60))
+  }
+
+  const clearError = (field: keyof typeof validationErrors) => {
+    if (validationErrors[field]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[field]
+        return newErrors
+      })
+    }
   }
 
   const qualityOptions = [
@@ -204,17 +280,25 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
                 type="datetime-local"
                 value={endTime}
                 max={currentTime ? new Date(currentTime.getTime() - currentTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : undefined}
-                onChange={(e) => setEndTime(e.target.value)}
+                onChange={(e) => {
+                  setEndTime(e.target.value)
+                  clearError('endTime')
+                }}
+                error={validationErrors.endTime}
               />
               <Select
                 label="Sleep Quality"
                 value={quality}
-                onChange={(e) => setQuality(e.target.value)}
+                onChange={(e) => {
+                  setQuality(e.target.value)
+                  clearError('quality')
+                }}
                 options={qualityOptions}
+                error={validationErrors.quality}
               />
               <Button
                 onClick={handleEndSleep}
-                disabled={isEnding || !endTime || !quality}
+                disabled={isEnding}
                 className="w-full"
               >
                 {isEnding ? 'Ending...' : 'End Sleep'}
@@ -230,7 +314,11 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
                 type="datetime-local"
                 value={startTime}
                 max={currentTime ? new Date(currentTime.getTime() - currentTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : undefined}
-                onChange={(e) => setStartTime(e.target.value)}
+                onChange={(e) => {
+                  setStartTime(e.target.value)
+                  clearError('startTime')
+                }}
+                error={validationErrors.startTime}
               />
               
               <div className="flex items-center space-x-3">
@@ -253,20 +341,28 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
                     type="datetime-local"
                     value={endTime}
                     max={currentTime ? new Date(currentTime.getTime() - currentTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : undefined}
-                    onChange={(e) => setEndTime(e.target.value)}
+                    onChange={(e) => {
+                      setEndTime(e.target.value)
+                      clearError('endTime')
+                    }}
+                    error={validationErrors.endTime}
                   />
                   <Select
                     label="Sleep Quality"
                     value={quality}
-                    onChange={(e) => setQuality(e.target.value)}
+                    onChange={(e) => {
+                      setQuality(e.target.value)
+                      clearError('quality')
+                    }}
                     options={qualityOptions}
+                    error={validationErrors.quality}
                   />
                 </>
               )}
 
               <Button
                 onClick={handleStartSleep}
-                disabled={isStarting || !startTime || (!stillSleeping && (!endTime || !quality))}
+                disabled={isStarting}
                 className="w-full"
                 size="lg"
               >

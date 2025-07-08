@@ -25,7 +25,7 @@ export default function Select({
       <select
         className={cn(
           'w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent bg-white',
-          error && 'border-red-300 focus:ring-red-300',
+          error && 'border-red-500 focus:ring-red-500 bg-red-50',
           className
         )}
         {...props}
@@ -38,7 +38,7 @@ export default function Select({
         ))}
       </select>
       {error && (
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="text-sm text-red-600 font-medium bg-red-50 p-2 rounded border-l-4 border-red-500">{error}</p>
       )}
     </div>
   )
