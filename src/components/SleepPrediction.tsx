@@ -21,6 +21,7 @@ export default function SleepPrediction({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [currentTime, setCurrentTime] = useState(new Date())
 
   useEffect(() => {
     const loadPrediction = async () => {
@@ -57,6 +58,15 @@ export default function SleepPrediction({
     return () => clearTimeout(timeoutId)
   }, [childAge, recentSessions, activeSession, refreshTrigger])
 
+  // Update current time every second for real-time "Time awake" display
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+    
+    return () => clearInterval(timer)
+  }, [])
+
   const getTimeSinceLastSleep = () => {
     if (recentSessions.length === 0) return null
     
@@ -64,8 +74,7 @@ export default function SleepPrediction({
     if (!lastSession.end_time) return null
 
     const endTime = new Date(lastSession.end_time)
-    const now = new Date()
-    const diffMinutes = Math.floor((now.getTime() - endTime.getTime()) / (1000 * 60))
+    const diffMinutes = Math.floor((currentTime.getTime() - endTime.getTime()) / (1000 * 60))
     
     const hours = Math.floor(diffMinutes / 60)
     const minutes = diffMinutes % 60
