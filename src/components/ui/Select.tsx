@@ -30,7 +30,7 @@ export default function Select({
         )}
         {...props}
       >
-        <option value="">Select...</option>
+        {label && <option value="">Select...</option>}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

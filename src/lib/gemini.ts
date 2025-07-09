@@ -1,13 +1,7 @@
 import { SleepSession } from './supabase'
+import type { SleepPrediction } from './llm-providers'
 
-export interface SleepPrediction {
-  nextBedtime: string
-  timeUntilBedtime: string
-  expectedDuration: string
-  confidence: number
-  summary: string
-  reasoning: string
-}
+export type { SleepPrediction }
 
 export async function predictNextSleep(
   childAge: number,

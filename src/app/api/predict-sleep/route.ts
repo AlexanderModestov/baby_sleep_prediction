@@ -1,15 +1,6 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
 import { SleepSession } from '@/lib/supabase'
-
-const apiKey = process.env.GOOGLE_API_KEY
-const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash'
-
-if (!apiKey) {
-  console.error('GOOGLE_API_KEY environment variable is not set')
-}
-
-const genAI = new GoogleGenerativeAI(apiKey!)
+import { createLLMProvider, createPrompt, getLLMConfig } from '@/lib/llm-providers'
 
 // Age-appropriate wake windows and sleep recommendations
 function getAgeBasedRecommendations(ageInMonths: number) {
@@ -80,84 +71,17 @@ export async function POST(request: NextRequest) {
       return getGeneralRecommendation(childAge, sleepHistory)
     }
 
-    // Check if API key is available
-    if (!apiKey) {
-      throw new Error('Google API key is not configured')
-    }
-
-    const model = genAI.getGenerativeModel({ model: modelName })
-
-    const prompt = `
-You are a pediatric sleep expert. Based on the following sleep data for a ${childAge}-month-old baby, predict their next optimal sleep time.
-
-Sleep History (last 7 days):
-${sleepHistory.map((session: SleepSession) => `
-- Start: ${session.start_time}
-- End: ${session.end_time || 'Still sleeping'}
-- Duration: ${session.duration_minutes ? Math.round(session.duration_minutes / 60 * 100) / 100 : 'N/A'} hours
-- Quality: ${session.quality || 'Not rated'}
-- Type: ${session.session_type}
-`).join('\n')}
-
-Please provide a prediction in the following JSON format:
-{
-  "nextBedtime": "ISO timestamp",
-  "timeUntilBedtime": "human readable time in format 'X hours Y minutes' (e.g., '2 hours 30 minutes', '1 hour 15 minutes', or '45 minutes')",
-  "expectedDuration": "expected sleep duration in format 'X hours Y minutes' (e.g., '2 hours', '1 hour 30 minutes')",
-  "confidence": 0.85,
-  "summary": "2-3 sentence clear and concise recommendation for parents",
-  "reasoning": "Detailed explanation of the prediction including analysis of sleep patterns, age considerations, and specific recommendations"
-}
-
-Consider:
-- Age-appropriate sleep patterns
-- Recent sleep history
-- Time of day
-- Sleep quality trends
-- Typical wake windows for this age
-
-For the summary field: Provide a brief, parent-friendly recommendation in 2-3 sentences.
-For the reasoning field: Provide a comprehensive analysis including sleep pattern trends, age-appropriate considerations, and detailed recommendations.
-`
-
-    // Add retry logic for rate limiting
-    let result
-    let retryCount = 0
-    const maxRetries = 3
+    // Get LLM configuration and create provider
+    const llmConfig = getLLMConfig()
+    const provider = createLLMProvider(llmConfig)
     
-    while (retryCount < maxRetries) {
-      try {
-        result = await model.generateContent(prompt)
-        break // Success, exit retry loop
-      } catch (error: unknown) {
-        const isRateLimitError = error && typeof error === 'object' && 'status' in error && error.status === 429
-        if (isRateLimitError && retryCount < maxRetries - 1) {
-          // Rate limited, wait and retry
-          const waitTime = Math.pow(2, retryCount) * 1000 // Exponential backoff: 1s, 2s, 4s
-          console.log(`Rate limited, retrying in ${waitTime}ms...`)
-          await new Promise(resolve => setTimeout(resolve, waitTime))
-          retryCount++
-        } else {
-          throw error // Re-throw if not rate limit or max retries reached
-        }
-      }
-    }
+    // Create prompt using the template
+    const prompt = createPrompt(childAge, sleepHistory)
     
-    if (!result) {
-      throw new Error('Failed to generate content after retries')
-    }
+    // Generate prediction using the selected provider
+    const prediction = await provider.generateSleepPrediction(prompt)
     
-    const response = await result.response
-    const text = response.text()
-
-    // Extract JSON from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
-      const prediction = JSON.parse(jsonMatch[0])
-      return NextResponse.json(prediction)
-    }
-
-    throw new Error('Could not parse prediction from AI response')
+    return NextResponse.json(prediction)
   } catch (error) {
     console.error('Error predicting sleep:', error)
     

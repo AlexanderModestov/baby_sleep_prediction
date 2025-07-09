@@ -15,7 +15,9 @@ interface MainScreenProps {
   onEditChild: (child: Child) => void
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps) {
+  // onEditChild is kept for interface compatibility but not used in simplified UI
   const { children } = useChildren()
   const { user } = useTelegram()
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
@@ -71,66 +73,27 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
 
       {/* Child Selection */}
       <Card>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-800">
-              Child Selection
-            </h2>
-            <p className="text-sm text-gray-600">
-              Select a child to view their sleep tracking
-            </p>
+        <div className="flex items-center space-x-3">
+          <div className="flex-1">
+            <Select
+              value={selectedChild?.id || ''}
+              onChange={(e) => {
+                const child = children.find(c => c.id === e.target.value)
+                setSelectedChild(child || null)
+              }}
+              options={children.map(child => ({
+                value: child.id,
+                label: child.name
+              }))}
+            />
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={onAddChild}
           >
-            + Add Child
+            +
           </Button>
-        </div>
-        
-        <div className="space-y-4">
-          <Select
-            label="Select Child"
-            value={selectedChild?.id || ''}
-            onChange={(e) => {
-              const child = children.find(c => c.id === e.target.value)
-              setSelectedChild(child || null)
-            }}
-            options={children.map(child => ({
-              value: child.id,
-              label: child.name
-            }))}
-          />
-          
-          {selectedChild && (
-            <div className="p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="text-3xl">
-                    {selectedChild.gender === 'male' ? '👦' : '👧'}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-800 text-lg">
-                      {selectedChild.name}
-                    </h3>
-                    <div className="flex items-center space-x-4 text-sm text-gray-600">
-                      <span>{calculateAge(selectedChild.date_of_birth)} months old</span>
-                      <span>•</span>
-                      <span>Born {new Date(selectedChild.date_of_birth).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => onEditChild(selectedChild)}
-                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded-lg transition-colors"
-                  title="Edit child"
-                >
-                  ✏️
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </Card>
 
