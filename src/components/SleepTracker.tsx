@@ -20,6 +20,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
   const { showAlert, hapticFeedback, alertModal } = useTelegram()
   const [isStarting, setIsStarting] = useState(false)
   const [isEnding, setIsEnding] = useState(false)
+  const [showEndFields, setShowEndFields] = useState(false)
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [quality, setQuality] = useState('')
@@ -154,6 +155,11 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
     }
   }
 
+  const handleStartEndProcess = () => {
+    setShowEndFields(true)
+    hapticFeedback()
+  }
+
   const handleEndSleep = async () => {
     console.log('handleEndSleep called') // Debug
     console.log('Current quality value:', quality) // Debug
@@ -208,6 +214,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
       
       setEndTime('')
       setQuality('')
+      setShowEndFields(false)
       onSessionUpdate?.()
     } catch {
       hapticFeedback()
@@ -274,34 +281,60 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
 
             {/* End Sleep Controls */}
             <div className="space-y-4">
-              <Input
-                label="End Time"
-                type="datetime-local"
-                value={endTime}
-                max={currentTime ? new Date(currentTime.getTime() - currentTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : undefined}
-                onChange={(e) => {
-                  setEndTime(e.target.value)
-                  clearError('endTime')
-                }}
-                error={validationErrors.endTime}
-              />
-              <Select
-                label="Sleep Quality"
-                value={quality}
-                onChange={(e) => {
-                  setQuality(e.target.value)
-                  clearError('quality')
-                }}
-                options={qualityOptions}
-                error={validationErrors.quality}
-              />
-              <Button
-                onClick={handleEndSleep}
-                disabled={isEnding}
-                className="w-full"
-              >
-                {isEnding ? 'Ending...' : 'End Sleep'}
-              </Button>
+              {!showEndFields ? (
+                <Button
+                  onClick={handleStartEndProcess}
+                  disabled={isEnding}
+                  className="w-full"
+                >
+                  End Sleep Session
+                </Button>
+              ) : (
+                <>
+                  <Input
+                    label="End Time"
+                    type="datetime-local"
+                    value={endTime}
+                    max={currentTime ? new Date(currentTime.getTime() - currentTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : undefined}
+                    onChange={(e) => {
+                      setEndTime(e.target.value)
+                      clearError('endTime')
+                    }}
+                    error={validationErrors.endTime}
+                  />
+                  <Select
+                    label="Sleep Quality"
+                    value={quality}
+                    onChange={(e) => {
+                      setQuality(e.target.value)
+                      clearError('quality')
+                    }}
+                    options={qualityOptions}
+                    error={validationErrors.quality}
+                  />
+                  <div className="flex space-x-3">
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setShowEndFields(false)
+                        setEndTime('')
+                        setQuality('')
+                        setValidationErrors({})
+                      }}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleEndSleep}
+                      disabled={isEnding}
+                      className="flex-1"
+                    >
+                      {isEnding ? 'Ending...' : 'End Sleep'}
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           </>
         ) : (
@@ -309,7 +342,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
             {/* Sleep Form */}
             <div className="space-y-4">
               <Input
-                label="Start Time"
+                label={stillSleeping ? "Start Sleep Session" : "Start Time"}
                 type="datetime-local"
                 value={startTime}
                 onFocus={() => {

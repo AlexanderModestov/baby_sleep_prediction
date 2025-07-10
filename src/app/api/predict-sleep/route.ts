@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SleepSession } from '@/lib/supabase'
 import { createLLMProvider, createPrompt, getLLMConfig } from '@/lib/llm-providers'
+import { writeFileSync } from 'fs'
+import path from 'path'
 
 // Age-appropriate wake windows and sleep recommendations
 function getAgeBasedRecommendations(ageInMonths: number) {
@@ -77,6 +79,27 @@ export async function POST(request: NextRequest) {
     
     // Create prompt using the template
     const prompt = createPrompt(childAge, sleepHistory)
+    
+    // Log the final prompt to request.json if not in production
+    if (process.env.PROD !== 'true') {
+      try {
+        const requestData = {
+          timestamp: new Date().toISOString(),
+          childAge,
+          sleepHistoryCount: sleepHistory.length,
+          finalPrompt: prompt,
+          llmConfig: {
+            provider: llmConfig.provider,
+            model: llmConfig.model
+          }
+        }
+        
+        const requestFilePath = path.join(process.cwd(), 'request.json')
+        writeFileSync(requestFilePath, JSON.stringify(requestData, null, 2))
+      } catch (error) {
+        console.error('Error writing request.json:', error)
+      }
+    }
     
     // Generate prediction using the selected provider
     const prediction = await provider.generateSleepPrediction(prompt)

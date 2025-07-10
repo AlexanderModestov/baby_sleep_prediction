@@ -4,8 +4,7 @@ import { useTelegram } from '@/hooks/useTelegram'
 import { Child } from '@/lib/supabase'
 import { calculateAge } from '@/lib/utils'
 import Button from './ui/Button'
-import Card from './ui/Card'
-import Select from './ui/Select'
+import SwipeableChildSelector from './ui/SwipeableChildSelector'
 import SleepTracker from './SleepTracker'
 import SleepPrediction from './SleepPrediction'
 import SleepHistory from './SleepHistory'
@@ -15,9 +14,7 @@ interface MainScreenProps {
   onEditChild: (child: Child) => void
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps) {
-  // onEditChild is kept for interface compatibility but not used in simplified UI
   const { children } = useChildren()
   const { user } = useTelegram()
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
@@ -72,30 +69,28 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
       </div>
 
       {/* Child Selection */}
-      <Card>
-        <div className="flex items-center space-x-3">
-          <div className="flex-1">
-            <Select
-              value={selectedChild?.id || ''}
-              onChange={(e) => {
-                const child = children.find(c => c.id === e.target.value)
-                setSelectedChild(child || null)
-              }}
-              options={children.map(child => ({
-                value: child.id,
-                label: child.name
-              }))}
-            />
-          </div>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <span className="text-lg font-medium text-gray-700">
+            Add another child
+          </span>
           <Button
             variant="outline"
             size="sm"
             onClick={onAddChild}
+            className="w-8 h-8 p-0 flex items-center justify-center"
           >
             +
           </Button>
         </div>
-      </Card>
+        
+        <SwipeableChildSelector
+          childrenList={children}
+          selectedChild={selectedChild}
+          onChildSelect={setSelectedChild}
+          onEditChild={onEditChild}
+        />
+      </div>
 
       {selectedChild && (
         <>

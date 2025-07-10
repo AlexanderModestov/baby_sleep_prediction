@@ -20,7 +20,6 @@ export default function SleepPrediction({
   const [prediction, setPrediction] = useState<PredictionType | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isExpanded, setIsExpanded] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
 
   useEffect(() => {
@@ -183,23 +182,6 @@ export default function SleepPrediction({
                       <p className="text-sm text-purple-700 font-medium">
                         {prediction.summary}
                       </p>
-                      {prediction.reasoning && (
-                        <div className="mt-2">
-                          <button
-                            onClick={() => setIsExpanded(!isExpanded)}
-                            className="text-xs text-purple-600 hover:text-purple-800 transition-colors flex items-center gap-1"
-                          >
-                            {isExpanded ? '▼' : '▶'} {isExpanded ? 'Show less' : 'Show detailed analysis'}
-                          </button>
-                          {isExpanded && (
-                            <div className="mt-2 p-3 bg-white/50 rounded-lg">
-                              <p className="text-sm text-gray-700">
-                                {prediction.reasoning}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
                   )}
                   

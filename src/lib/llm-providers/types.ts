@@ -11,7 +11,7 @@ export interface LLMProvider {
   generateSleepPrediction(prompt: string): Promise<SleepPrediction>
 }
 
-export type LLMProviderType = 'openai' | 'gemini'
+export type LLMProviderType = 'openai' | 'gemini' | 'claude'
 
 export interface LLMConfig {
   provider: LLMProviderType

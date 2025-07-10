@@ -1,6 +1,7 @@
 import { LLMProvider, LLMConfig } from './types'
 import { OpenAIProvider } from './openai-provider'
 import { GeminiProvider } from './gemini-provider'
+import { ClaudeProvider } from './claude-provider'
 import { getLLMConfig, getPromptTemplate } from './config'
 
 interface SleepSession {
@@ -19,6 +20,8 @@ export function createLLMProvider(config?: LLMConfig): LLMProvider {
       return new OpenAIProvider(llmConfig.apiKey, llmConfig.model)
     case 'gemini':
       return new GeminiProvider(llmConfig.apiKey, llmConfig.model)
+    case 'claude':
+      return new ClaudeProvider(llmConfig.apiKey, llmConfig.model)
     default:
       throw new Error(`Unsupported LLM provider: ${llmConfig.provider}`)
   }

@@ -13,6 +13,9 @@ export function getLLMConfig(): LLMConfig {
   } else if (provider === 'gemini') {
     apiKey = process.env.GOOGLE_API_KEY || ''
     model = process.env.GEMINI_MODEL || 'gemini-1.5-flash'
+  } else if (provider === 'claude') {
+    apiKey = process.env.CLAUDE_API_KEY || ''
+    model = process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20241022'
   } else {
     throw new Error(`Unsupported LLM provider: ${provider}`)
   }
