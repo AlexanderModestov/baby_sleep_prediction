@@ -1,0 +1,15 @@
+{
+  "112671174": {
+    "telegram_id": 112671174,
+    "username": "alexmodestov",
+    "first_name": "Alex",
+    "last_name": "Modestov",
+    "custom_name": "Alex",
+    "settings": {
+      "notifications_enabled": true,
+      "sleep_reminders": true,
+      "wake_reminders": true
+    },
+    "registered": true
+  }
+}
