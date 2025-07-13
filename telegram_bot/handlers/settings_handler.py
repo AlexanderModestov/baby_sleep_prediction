@@ -3,6 +3,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+import urllib.parse
 
 from database.user_manager import UserManager
 
@@ -14,7 +15,10 @@ class SettingsStates(StatesGroup):
 
 @router.callback_query(F.data == "settings")
 async def settings_menu(callback: CallbackQuery):
-    await callback.answer()
+    try:
+        await callback.answer()
+    except Exception:
+        pass  # Ignore callback answer errors (query too old)
     user_id = callback.from_user.id
     
     if not user_manager.is_registered(user_id):
@@ -52,7 +56,10 @@ async def settings_menu(callback: CallbackQuery):
 
 @router.callback_query(F.data == "change_name")
 async def change_name(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
+    try:
+        await callback.answer()
+    except Exception:
+        pass  # Ignore callback answer errors (query too old)
     await state.set_state(SettingsStates.waiting_for_name_change)
     await callback.message.edit_text(
         "Please enter your new name:"
@@ -60,7 +67,10 @@ async def change_name(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("toggle_"))
 async def toggle_setting(callback: CallbackQuery):
-    await callback.answer()
+    try:
+        await callback.answer()
+    except Exception:
+        pass  # Ignore callback answer errors (query too old)
     user_id = callback.from_user.id
     setting_name = callback.data.replace("toggle_", "")
     
@@ -82,7 +92,10 @@ async def toggle_setting(callback: CallbackQuery):
 
 @router.callback_query(F.data == "back_to_main")
 async def back_to_main(callback: CallbackQuery):
-    await callback.answer()
+    try:
+        await callback.answer()
+    except Exception:
+        pass  # Ignore callback answer errors (query too old)
     user_id = callback.from_user.id
     user = user_manager.get_user(user_id)
     
@@ -91,7 +104,7 @@ async def back_to_main(callback: CallbackQuery):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
             text="🍼 Open Baby Sleep Tracker",
-            web_app=WebAppInfo(url=f"{WEBAPP_URL}?telegram_user_id={user_id}")
+            web_app=WebAppInfo(url=f"{WEBAPP_URL}?telegram_user_id={user_id}&custom_name={urllib.parse.quote(user['custom_name'])}")
         )],
         [InlineKeyboardButton(text="⚙️ Settings", callback_data="settings")]
     ])
@@ -129,10 +142,11 @@ async def process_name_change(message, state: FSMContext):
     from config.settings import WEBAPP_URL
     from aiogram.types import WebAppInfo
     
+    user = user_manager.get_user(message.from_user.id)
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
             text="🍼 Open Baby Sleep Tracker",
-            web_app=WebAppInfo(url=f"{WEBAPP_URL}?telegram_user_id={message.from_user.id}")
+            web_app=WebAppInfo(url=f"{WEBAPP_URL}?telegram_user_id={message.from_user.id}&custom_name={urllib.parse.quote(new_name)}")
         )],
         [InlineKeyboardButton(text="⚙️ Settings", callback_data="settings")]
     ])

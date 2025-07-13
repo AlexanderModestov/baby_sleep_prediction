@@ -3,6 +3,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, W
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+import urllib.parse
 
 from database.user_manager import UserManager
 from config.settings import WEBAPP_URL
@@ -23,7 +24,7 @@ async def start_command(message: Message, state: FSMContext):
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(
                 text="🍼 Open Baby Sleep Tracker",
-                web_app=WebAppInfo(url=f"{WEBAPP_URL}?telegram_user_id={user_id}")
+                web_app=WebAppInfo(url=f"{WEBAPP_URL}?telegram_user_id={user_id}&custom_name={urllib.parse.quote(user['custom_name'])}")
             )],
             [InlineKeyboardButton(text="⚙️ Settings", callback_data="settings")]
         ])
@@ -51,7 +52,11 @@ async def start_command(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "start_registration")
 async def start_registration(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
+    try:
+        await callback.answer()
+    except Exception:
+        pass  # Ignore callback answer errors (query too old)
+    
     await state.set_state(RegistrationStates.waiting_for_name)
     await callback.message.edit_text(
         "Great! 🎉\n\n"
@@ -61,7 +66,11 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "cancel_registration")
 async def cancel_registration(callback: CallbackQuery):
-    await callback.answer()
+    try:
+        await callback.answer()
+    except Exception:
+        pass  # Ignore callback answer errors (query too old)
+    
     await callback.message.edit_text(
         "No problem! You can always start the registration later by sending /start again."
     )
@@ -97,7 +106,7 @@ async def process_name(message: Message, state: FSMContext):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
             text="🍼 Open Baby Sleep Tracker",
-            web_app=WebAppInfo(url=f"{WEBAPP_URL}?telegram_user_id={message.from_user.id}")
+            web_app=WebAppInfo(url=f"{WEBAPP_URL}?telegram_user_id={message.from_user.id}&custom_name={urllib.parse.quote(custom_name)}")
         )],
         [InlineKeyboardButton(text="⚙️ Settings", callback_data="settings")]
     ])
