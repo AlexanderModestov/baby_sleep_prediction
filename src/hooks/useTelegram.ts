@@ -6,6 +6,24 @@ interface TelegramUser {
   custom_name?: string
 }
 
+interface TelegramWebApp {
+  ready: () => void
+  initDataUnsafe?: {
+    user?: {
+      id: number
+      first_name: string
+      last_name?: string
+      username?: string
+    }
+  }
+}
+
+interface WindowWithTelegram extends Window {
+  Telegram?: {
+    WebApp: TelegramWebApp
+  }
+}
+
 export function useTelegram() {
   const [user, setUser] = useState<TelegramUser | null>(null)
   const [isReady, setIsReady] = useState(false)
@@ -29,8 +47,8 @@ export function useTelegram() {
   useEffect(() => {
     const initializeTelegramUser = async () => {
       // Check if Telegram WebApp is available
-      if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
-        const tg = (window as any).Telegram.WebApp
+      if (typeof window !== 'undefined' && (window as WindowWithTelegram).Telegram?.WebApp) {
+        const tg = (window as WindowWithTelegram).Telegram.WebApp
         tg.ready()
         
         if (tg.initDataUnsafe?.user) {
@@ -122,27 +140,6 @@ export function useTelegram() {
     initializeTelegramUser()
   }, [])
 
-  const fetchTelegramUserData = async (telegramUserId: string) => {
-    try {
-      // In a real implementation, you'd call your bot's API to get user data
-      // For now, we'll use localStorage to simulate this
-      const savedUserData = localStorage.getItem(`telegram_user_${telegramUserId}`)
-      if (savedUserData) {
-        const userData = JSON.parse(savedUserData)
-        setUser({
-          id: parseInt(telegramUserId),
-          first_name: userData.first_name || 'User',
-          custom_name: userData.custom_name || userData.first_name || 'User'
-        })
-      } else {
-        // Fallback
-        setUser({ id: parseInt(telegramUserId), first_name: 'User' })
-      }
-    } catch (error) {
-      console.error('Error fetching telegram user data:', error)
-      setUser({ id: parseInt(telegramUserId), first_name: 'User' })
-    }
-  }
 
   const showAlert = (message: string) => {
     setAlertModal({
