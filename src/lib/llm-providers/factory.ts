@@ -27,7 +27,7 @@ export function createLLMProvider(config?: LLMConfig): LLMProvider {
   }
 }
 
-export function createPrompt(childAge: number, sleepHistory: SleepSession[]): string {
+export function createPrompt(childAge: number, childGender: string, sleepHistory: SleepSession[]): string {
   const promptTemplate = getPromptTemplate()
   
   const sleepHistoryText = sleepHistory.map((session: SleepSession) => `
@@ -40,5 +40,6 @@ export function createPrompt(childAge: number, sleepHistory: SleepSession[]): st
   
   return promptTemplate
     .replace('{childAge}', childAge.toString())
+    .replace('{childGender}', childGender)
     .replace('{sleepHistory}', sleepHistoryText)
 }

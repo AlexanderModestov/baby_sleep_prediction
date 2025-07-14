@@ -61,7 +61,7 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
       {/* Header */}
       <div className="text-center space-y-2">
         <h1 className="text-2xl font-bold text-gray-800">
-          Hello, {user?.first_name || 'Parent'}! 👋
+          Hello, {user?.custom_name || user?.first_name || 'Parent'}! 👋
         </h1>
         <p className="text-gray-600">
           Track your baby&apos;s sleep patterns

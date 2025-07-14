@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 
+interface TelegramUser {
+  id: number
+  first_name: string
+  custom_name?: string
+}
+
 export function useTelegram() {
-  const [user, setUser] = useState<{ id: number; first_name: string } | null>(null)
+  const [user, setUser] = useState<TelegramUser | null>(null)
   const [isReady, setIsReady] = useState(false)
   const [alertModal, setAlertModal] = useState<{ isOpen: boolean; message: string; onClose: () => void }>({
     isOpen: false,
@@ -21,10 +27,122 @@ export function useTelegram() {
   })
 
   useEffect(() => {
-    // Initialize with a default user for web app
-    setUser({ id: 123456, first_name: 'User' })
-    setIsReady(true)
+    const initializeTelegramUser = async () => {
+      // Check if Telegram WebApp is available
+      if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
+        const tg = (window as any).Telegram.WebApp
+        tg.ready()
+        
+        if (tg.initDataUnsafe?.user) {
+          const telegramUser = tg.initDataUnsafe.user
+          console.log('Telegram user data:', telegramUser)
+          
+          // Try to fetch additional user data from bot database
+          try {
+            const apiUrl = `/api/telegram-user?telegram_user_id=${telegramUser.id}`
+            console.log('Fetching from:', apiUrl)
+            const response = await fetch(apiUrl)
+            console.log('API response status:', response.status)
+            
+            if (response.ok) {
+              const userData = await response.json()
+              console.log('API user data:', userData)
+              const finalUser = {
+                id: telegramUser.id,
+                first_name: userData.first_name || telegramUser.first_name,
+                custom_name: userData.custom_name || telegramUser.first_name
+              }
+              console.log('Setting user to:', finalUser)
+              setUser(finalUser)
+            } else {
+              console.log('API failed, using basic Telegram data')
+              // Use basic Telegram data if API fails
+              const basicUser = {
+                id: telegramUser.id,
+                first_name: telegramUser.first_name,
+                custom_name: telegramUser.first_name
+              }
+              console.log('Setting user to:', basicUser)
+              setUser(basicUser)
+            }
+          } catch (error) {
+            console.warn('Failed to fetch user data from bot database:', error)
+            // Use basic Telegram data
+            const errorUser = {
+              id: telegramUser.id,
+              first_name: telegramUser.first_name,
+              custom_name: telegramUser.first_name
+            }
+            console.log('Setting user to (error case):', errorUser)
+            setUser(errorUser)
+          }
+        } else {
+          // Fallback for web app without user data
+          setUser({ id: 123456, first_name: 'Demo User' })
+        }
+      } else {
+        // Check URL parameters for telegram user data (for testing)
+        const urlParams = new URLSearchParams(window.location.search)
+        const telegramUserId = urlParams.get('telegram_user_id')
+        const customName = urlParams.get('custom_name')
+        
+        if (telegramUserId) {
+          try {
+            const response = await fetch(`/api/telegram-user?telegram_user_id=${telegramUserId}`)
+            if (response.ok) {
+              const userData = await response.json()
+              setUser({
+                id: parseInt(telegramUserId),
+                first_name: userData.first_name || customName || 'User',
+                custom_name: userData.custom_name || customName || 'User'
+              })
+            } else {
+              setUser({
+                id: parseInt(telegramUserId),
+                first_name: customName || 'User',
+                custom_name: customName || 'User'
+              })
+            }
+          } catch (error) {
+            console.warn('Failed to fetch user data:', error)
+            setUser({
+              id: parseInt(telegramUserId),
+              first_name: customName || 'User',
+              custom_name: customName || 'User'
+            })
+          }
+        } else {
+          // Fallback for web app without Telegram
+          setUser({ id: 123456, first_name: 'Demo User' })
+        }
+      }
+      setIsReady(true)
+    }
+
+    initializeTelegramUser()
   }, [])
+
+  const fetchTelegramUserData = async (telegramUserId: string) => {
+    try {
+      // In a real implementation, you'd call your bot's API to get user data
+      // For now, we'll use localStorage to simulate this
+      const savedUserData = localStorage.getItem(`telegram_user_${telegramUserId}`)
+      if (savedUserData) {
+        const userData = JSON.parse(savedUserData)
+        setUser({
+          id: parseInt(telegramUserId),
+          first_name: userData.first_name || 'User',
+          custom_name: userData.custom_name || userData.first_name || 'User'
+        })
+      } else {
+        // Fallback
+        setUser({ id: parseInt(telegramUserId), first_name: 'User' })
+      }
+    } catch (error) {
+      console.error('Error fetching telegram user data:', error)
+      setUser({ id: parseInt(telegramUserId), first_name: 'User' })
+    }
+  }
 
   const showAlert = (message: string) => {
     setAlertModal({

@@ -1,7 +1,24 @@
+-- Create users table for Telegram authentication
+CREATE TABLE IF NOT EXISTS users (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    telegram_user_id BIGINT UNIQUE NOT NULL,
+    first_name TEXT NOT NULL,
+    last_name TEXT,
+    username TEXT,
+    custom_name TEXT,
+    settings JSONB DEFAULT '{
+        "notifications_enabled": true,
+        "sleep_reminders": true,
+        "wake_reminders": true
+    }'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create children table
 CREATE TABLE IF NOT EXISTS children (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id TEXT NOT NULL,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     date_of_birth DATE NOT NULL,
     gender TEXT NOT NULL CHECK (gender IN ('male', 'female')),
@@ -24,6 +41,7 @@ CREATE TABLE IF NOT EXISTS sleep_sessions (
 );
 
 -- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_users_telegram_user_id ON users(telegram_user_id);
 CREATE INDEX IF NOT EXISTS idx_children_user_id ON children(user_id);
 CREATE INDEX IF NOT EXISTS idx_sleep_sessions_child_id ON sleep_sessions(child_id);
 CREATE INDEX IF NOT EXISTS idx_sleep_sessions_start_time ON sleep_sessions(start_time);
@@ -39,6 +57,11 @@ END;
 $$ language 'plpgsql';
 
 -- Create triggers for updated_at
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_children_updated_at
     BEFORE UPDATE ON children
     FOR EACH ROW
