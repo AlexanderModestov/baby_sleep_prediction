@@ -66,7 +66,7 @@ function getGeneralRecommendation(childAge: number, sleepHistory: SleepSession[]
 
 export async function POST(request: NextRequest) {
   try {
-    const { childAge, sleepHistory } = await request.json()
+    const { childAge, childGender, sleepHistory } = await request.json()
 
     // Check if there's insufficient sleep history for personalized predictions
     if (sleepHistory.length < 3) {
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     const provider = createLLMProvider(llmConfig)
     
     // Create prompt using the template
-    const prompt = createPrompt(childAge, sleepHistory)
+    const prompt = createPrompt(childAge, childGender || 'unknown', sleepHistory)
     
     // Log the final prompt to request.json if not in production
     if (process.env.PROD !== 'true') {
