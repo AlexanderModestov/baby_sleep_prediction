@@ -48,7 +48,7 @@ export function useTelegram() {
     const initializeTelegramUser = async () => {
       // Check if Telegram WebApp is available
       if (typeof window !== 'undefined' && (window as WindowWithTelegram).Telegram?.WebApp) {
-        const tg = (window as WindowWithTelegram).Telegram.WebApp
+        const tg = (window as WindowWithTelegram).Telegram!.WebApp
         tg.ready()
         
         if (tg.initDataUnsafe?.user) {
