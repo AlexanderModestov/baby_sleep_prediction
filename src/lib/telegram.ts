@@ -29,7 +29,7 @@ export const getUserId = async (): Promise<string> => {
     let telegramUserId: string | null = null
     
     if ((window as WindowWithTelegram).Telegram?.WebApp?.initDataUnsafe?.user?.id) {
-      telegramUserId = (window as WindowWithTelegram).Telegram.WebApp.initDataUnsafe.user.id.toString()
+      telegramUserId = (window as WindowWithTelegram).Telegram!.WebApp.initDataUnsafe!.user!.id.toString()
     } else {
       // Check URL parameters for telegram_user_id
       const urlParams = new URLSearchParams(window.location.search)
@@ -65,7 +65,7 @@ export const getUserId = async (): Promise<string> => {
 // Get Telegram user data
 export const getTelegramUser = (): TelegramUser | null => {
   if (typeof window !== 'undefined' && (window as WindowWithTelegram).Telegram?.WebApp) {
-    return (window as WindowWithTelegram).Telegram.WebApp.initDataUnsafe?.user || null
+    return (window as WindowWithTelegram).Telegram!.WebApp.initDataUnsafe?.user || null
   }
   return null
 }
