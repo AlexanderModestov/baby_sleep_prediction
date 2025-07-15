@@ -14,7 +14,7 @@ export function useChildren() {
   const fetchChildren = async () => {
     try {
       setLoading(true)
-      const userId = getUserId()
+      const userId = await getUserId()
 
       const { data, error } = await supabase
         .from('children')
@@ -33,7 +33,7 @@ export function useChildren() {
 
   const addChild = async (childData: Omit<Child, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     try {
-      const userId = getUserId()
+      const userId = await getUserId()
       
       const { data, error } = await supabase
         .from('children')
