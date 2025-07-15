@@ -68,7 +68,7 @@ export function useTelegram() {
               const finalUser = {
                 id: telegramUser.id,
                 first_name: userData.first_name || telegramUser.first_name,
-                custom_name: userData.custom_name || telegramUser.first_name
+                custom_name: userData.custom_name || userData.first_name || telegramUser.first_name
               }
               console.log('Setting user to:', finalUser)
               setUser(finalUser)

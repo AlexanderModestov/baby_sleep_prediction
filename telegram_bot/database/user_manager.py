@@ -1,69 +1,84 @@
-import json
 import os
 from typing import Dict, Optional
+from supabase import create_client, Client
+from dotenv import load_dotenv
+
+# Load environment variables from parent directory
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
 
 class UserManager:
-    def __init__(self, data_file: str = "users.json"):
-        self.data_file = os.path.join(os.path.dirname(__file__), data_file)
-        self.users: Dict[int, Dict] = self._load_users()
-    
-    def _load_users(self) -> Dict[int, Dict]:
-        """Load users from JSON file"""
-        if os.path.exists(self.data_file):
-            try:
-                with open(self.data_file, 'r', encoding='utf-8') as f:
-                    return {int(k): v for k, v in json.load(f).items()}
-            except (json.JSONDecodeError, ValueError):
-                return {}
-        return {}
-    
-    def _save_users(self):
-        """Save users to JSON file"""
-        os.makedirs(os.path.dirname(self.data_file), exist_ok=True)
-        with open(self.data_file, 'w', encoding='utf-8') as f:
-            json.dump(self.users, f, ensure_ascii=False, indent=2)
+    def __init__(self):
+        supabase_url = os.getenv('NEXT_PUBLIC_SUPABASE_URL')
+        supabase_key = os.getenv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+        
+        if not supabase_url or not supabase_key:
+            raise ValueError("Supabase URL and key must be provided")
+        
+        self.supabase: Client = create_client(supabase_url, supabase_key)
     
     def register_user(self, user_id: int, telegram_data: Dict, custom_name: str = None) -> bool:
         """Register a new user or update existing user"""
-        user_data = {
-            "telegram_id": user_id,
-            "username": telegram_data.get("username"),
-            "first_name": telegram_data.get("first_name"),
-            "last_name": telegram_data.get("last_name"),
-            "custom_name": custom_name or telegram_data.get("first_name"),
-            "settings": {
-                "notifications_enabled": True,
-                "sleep_reminders": True,
-                "wake_reminders": True
-            },
-            "registered": True
-        }
-        
-        self.users[user_id] = user_data
-        self._save_users()
-        return True
+        try:
+            user_data = {
+                "telegram_user_id": user_id,
+                "username": telegram_data.get("username"),
+                "first_name": telegram_data.get("first_name"),
+                "last_name": telegram_data.get("last_name"),
+                "custom_name": custom_name or telegram_data.get("first_name"),
+                "settings": {
+                    "notifications_enabled": True,
+                    "sleep_reminders": True,
+                    "wake_reminders": True
+                }
+            }
+            
+            result = self.supabase.table('users').upsert(user_data).execute()
+            return True
+        except Exception as e:
+            print(f"Error registering user: {e}")
+            return False
     
     def get_user(self, user_id: int) -> Optional[Dict]:
         """Get user data by ID"""
-        return self.users.get(user_id)
+        try:
+            result = self.supabase.table('users').select('*').eq('telegram_user_id', user_id).execute()
+            if result.data:
+                return result.data[0]
+            return None
+        except Exception as e:
+            print(f"Error getting user: {e}")
+            return None
     
     def is_registered(self, user_id: int) -> bool:
         """Check if user is registered"""
         user = self.get_user(user_id)
-        return user is not None and user.get("registered", False)
+        return user is not None
     
     def update_user_name(self, user_id: int, custom_name: str) -> bool:
         """Update user's custom name"""
-        if user_id in self.users:
-            self.users[user_id]["custom_name"] = custom_name
-            self._save_users()
+        try:
+            result = self.supabase.table('users').update({
+                'custom_name': custom_name
+            }).eq('telegram_user_id', user_id).execute()
             return True
-        return False
+        except Exception as e:
+            print(f"Error updating user name: {e}")
+            return False
     
     def update_user_settings(self, user_id: int, settings: Dict) -> bool:
         """Update user's notification settings"""
-        if user_id in self.users:
-            self.users[user_id]["settings"].update(settings)
-            self._save_users()
-            return True
-        return False
+        try:
+            # First get current settings
+            user = self.get_user(user_id)
+            if user:
+                current_settings = user.get('settings', {})
+                current_settings.update(settings)
+                
+                result = self.supabase.table('users').update({
+                    'settings': current_settings
+                }).eq('telegram_user_id', user_id).execute()
+                return True
+            return False
+        except Exception as e:
+            print(f"Error updating user settings: {e}")
+            return False

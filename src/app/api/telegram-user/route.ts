@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   }
   
   try {
-    // Try to find user in Supabase
+    // Fetch user from Supabase
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
@@ -37,11 +37,9 @@ export async function GET(request: NextRequest) {
         }
       })
     } else {
-      // Return default data for new users (not yet registered in DB)
+      // Return null when user is not found - let the client handle this
       return NextResponse.json({
         telegram_id: parseInt(telegramUserId),
-        first_name: 'User',
-        custom_name: 'User',
         settings: {
           notifications_enabled: true,
           sleep_reminders: true,
@@ -53,8 +51,6 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching user data:', error)
     return NextResponse.json({
       telegram_id: parseInt(telegramUserId),
-      first_name: 'User',
-      custom_name: 'User',
       settings: {
         notifications_enabled: true,
         sleep_reminders: true,
