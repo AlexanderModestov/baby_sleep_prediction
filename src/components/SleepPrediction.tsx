@@ -1,34 +1,51 @@
 import { useState, useEffect } from 'react'
 import { SleepSession } from '@/lib/supabase'
-import { predictNextSleep, SleepPrediction as PredictionType } from '@/lib/gemini'
 import Button from './ui/Button'
 import Card from './ui/Card'
+
+interface SleepPrediction {
+  nextBedtime: string
+  timeUntilBedtime: string
+  expectedDuration: string
+  confidence: number
+  summary: string
+  reasoning: string
+}
 
 interface SleepPredictionProps {
   childAge: number
   recentSessions: SleepSession[]
   activeSession?: SleepSession
   refreshTrigger?: number
+  childGender?: string
+  childName?: string
 }
 
 export default function SleepPrediction({ 
   childAge, 
   recentSessions, 
   activeSession,
-  refreshTrigger 
+  refreshTrigger,
+  childGender = 'unknown',
+  childName = 'Baby'
 }: SleepPredictionProps) {
-  const [prediction, setPrediction] = useState<PredictionType | null>(null)
+  const [prediction, setPrediction] = useState<SleepPrediction | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [lastRequestId, setLastRequestId] = useState<string | null>(null)
 
   useEffect(() => {
     const loadPrediction = async () => {
+      // Generate a unique request ID
+      const requestId = `${childAge}-${childGender}-${childName}-${recentSessions.length}-${refreshTrigger}`
+      
       console.log('SleepPrediction useEffect triggered:', {
         activeSession: !!activeSession,
         recentSessionsCount: recentSessions.length,
         refreshTrigger,
-        childAge
+        childAge,
+        requestId
       })
       
       if (activeSession || recentSessions.length === 0) {
@@ -36,12 +53,36 @@ export default function SleepPrediction({
         return
       }
 
+      // Check if this is a duplicate request
+      if (lastRequestId === requestId) {
+        console.log('Skipping duplicate request:', requestId)
+        return
+      }
+
       console.log('Loading new prediction...')
+      setLastRequestId(requestId)
       setLoading(true)
       setError(null)
 
       try {
-        const result = await predictNextSleep(childAge, recentSessions)
+        const response = await fetch('/api/predict-sleep', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            childAge,
+            childGender,
+            childName,
+            sleepHistory: recentSessions
+          })
+        })
+        
+        if (!response.ok) {
+          throw new Error('Failed to get prediction')
+        }
+        
+        const result = await response.json()
         console.log('Prediction loaded successfully:', result)
         setPrediction(result)
       } catch (err) {
@@ -53,9 +94,9 @@ export default function SleepPrediction({
     }
 
     // Debounce the prediction requests to avoid rapid calls
-    const timeoutId = setTimeout(loadPrediction, 500)
+    const timeoutId = setTimeout(loadPrediction, 1000)
     return () => clearTimeout(timeoutId)
-  }, [childAge, recentSessions, activeSession, refreshTrigger])
+  }, [childAge, recentSessions, activeSession, refreshTrigger, childGender, childName, lastRequestId])
 
   // Update current time every second for real-time "Time awake" display
   useEffect(() => {

@@ -107,6 +107,8 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
             recentSessions={sessions.slice(0, 10)}
             activeSession={activeSession}
             refreshTrigger={refreshTrigger}
+            childGender={selectedChild.gender}
+            childName={selectedChild.name}
           />
 
           {/* Sleep History */}

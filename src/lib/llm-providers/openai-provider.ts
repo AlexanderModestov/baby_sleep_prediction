@@ -39,6 +39,10 @@ export class OpenAIProvider implements LLMProvider {
       const jsonMatch = content.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         const prediction = JSON.parse(jsonMatch[0])
+        // Check if LLM returned an error response
+        if (prediction.error) {
+          throw new Error(prediction.error)
+        }
         return prediction as SleepPrediction
       }
 
