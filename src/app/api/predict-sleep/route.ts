@@ -23,17 +23,10 @@ export async function POST(request: NextRequest) {
     console.error('Error in API route:', error)
     console.error('Stack:', error instanceof Error ? error.stack : 'No stack trace')
     
-    // Return fallback prediction
-    const fallback = {
-      nextBedtime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-      timeUntilBedtime: '2 hours 0 minutes',
-      expectedDuration: '2 hours 0 minutes',
-      confidence: 0.5,
-      summary: 'Baby should be ready for sleep in about 2 hours based on typical patterns.',
-      reasoning: 'Using default prediction due to API service unavailability'
-    }
-    
-    console.log('=== RETURNING FALLBACK ===')
-    return NextResponse.json(fallback)
+    console.log('=== ERROR IN PREDICTION ===')
+    return NextResponse.json({ 
+      error: 'Failed to generate sleep prediction',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }

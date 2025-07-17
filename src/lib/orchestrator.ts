@@ -187,14 +187,7 @@ export async function predictNextSleep(
       return getGeneralRecommendation(childAge, sleepHistory)
     }
     
-    // Return fallback prediction for other errors
-    return {
-      nextBedtime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-      timeUntilBedtime: '2 hours 0 minutes',
-      expectedDuration: '2 hours 0 minutes',
-      confidence: 0.5,
-      summary: 'Baby should be ready for sleep in about 2 hours based on typical patterns.',
-      reasoning: 'Using default prediction due to AI service unavailability'
-    }
+    // Re-throw other errors to be handled by caller
+    throw error
   }
 }
