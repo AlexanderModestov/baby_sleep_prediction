@@ -43,7 +43,7 @@ function formatTime(minutes: number): string {
 
 function getGeneralRecommendation(childAge: number, sleepHistory: SleepSession[]): SleepPrediction {
   const recommendations = getAgeBasedRecommendations(childAge)
-  const now = new Date()
+  const nowUTC = new Date() // This is already UTC since new Date() returns UTC internally
   
   // Calculate time since last sleep
   let timeSinceLastSleep = 0
@@ -52,14 +52,14 @@ function getGeneralRecommendation(childAge: number, sleepHistory: SleepSession[]
   if (sleepHistory.length > 0) {
     const lastSession = sleepHistory[0]
     if (lastSession.end_time) {
-      lastSleepEnd = new Date(lastSession.end_time)
-      timeSinceLastSleep = Math.floor((now.getTime() - lastSleepEnd.getTime()) / (1000 * 60))
+      lastSleepEnd = new Date(lastSession.end_time) // Database stores UTC
+      timeSinceLastSleep = Math.floor((nowUTC.getTime() - lastSleepEnd.getTime()) / (1000 * 60))
     }
   }
   
   // Calculate recommended next bedtime
   const timeUntilBedtime = Math.max(0, recommendations.wakeWindow - timeSinceLastSleep)
-  const nextBedtime = new Date(now.getTime() + timeUntilBedtime * 60 * 1000)
+  const nextBedtime = new Date(nowUTC.getTime() + timeUntilBedtime * 60 * 1000)
   
   return {
     nextBedtime: nextBedtime.toISOString(),
@@ -71,7 +71,7 @@ function getGeneralRecommendation(childAge: number, sleepHistory: SleepSession[]
   }
 }
 
-function createProvider(config: any): LLMProvider {
+function createProvider(config: { provider: string; apiKey: string; model: string }): LLMProvider {
   switch (config.provider) {
     case 'openai':
       return new OpenAIProvider(config.apiKey, config.model)
@@ -94,7 +94,7 @@ function createPrompt(childAge: number, sleepHistory: SleepSession[], childGende
   }
 
   const formattedEntries = sleepHistory.map(formatSession).join('\n')
-  const currentDate = new Date().toISOString()
+  const currentDate = new Date().toISOString() // UTC time for LLM context
   const babyProfile = { name: childName, gender: childGender }
   const babyAge = `${childAge} months`
   

@@ -19,7 +19,7 @@ export function formatDuration(minutes: number): string {
 }
 
 export function formatTime(dateString: string): string {
-  return new Date(dateString).toLocaleTimeString('en-US', {
+  return new Date(dateString).toLocaleTimeString(undefined, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: true
@@ -27,7 +27,7 @@ export function formatTime(dateString: string): string {
 }
 
 export function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'long',
     day: 'numeric'

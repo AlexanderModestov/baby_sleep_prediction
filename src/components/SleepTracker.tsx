@@ -274,7 +274,11 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
                   {currentTime ? formatDuration(getCurrentDuration()) : '⏱️'}
                 </div>
                 <p className="text-blue-600 text-sm">
-                  Started at {new Date(activeSession.start_time).toLocaleTimeString()}
+                  Started at {new Date(activeSession.start_time).toLocaleTimeString(undefined, {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
                 </p>
               </div>
             </div>

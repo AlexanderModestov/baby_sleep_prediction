@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { predictNextSleep } from '@/lib/orchestrator'
+import { predictionCache } from '@/lib/cache'
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,10 +10,24 @@ export async function POST(request: NextRequest) {
     console.log(`Child Age: ${childAge}`)
     console.log(`Child Gender: ${childGender}`)
     console.log(`Sleep History Length: ${sleepHistory?.length || 0}`)
+
+    // Generate cache key
+    const cacheKey = predictionCache.generateKey(childAge, sleepHistory, childGender || 'unknown', childName || 'Baby')
+    
+    // Check cache first
+    const cachedPrediction = predictionCache.get(cacheKey)
+    if (cachedPrediction) {
+      console.log('=== RETURNING CACHED PREDICTION ===')
+      return NextResponse.json(cachedPrediction)
+    }
+
     console.log('=== CALLING ORCHESTRATOR ===')
 
     // Use orchestrator to handle LLM provider selection and prediction
     const prediction = await predictNextSleep(childAge, sleepHistory, childGender || 'unknown', childName || 'Baby')
+    
+    // Cache the result
+    predictionCache.set(cacheKey, prediction)
     
     console.log('=== API ROUTE PREDICTION SUCCESS ===')
     console.log(JSON.stringify(prediction, null, 2))

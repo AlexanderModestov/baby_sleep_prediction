@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { SleepSession } from '@/lib/supabase'
 import Button from './ui/Button'
 import Card from './ui/Card'
@@ -32,71 +32,79 @@ export default function SleepPrediction({
   const [prediction, setPrediction] = useState<SleepPrediction | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [currentTime, setCurrentTime] = useState(new Date())
+  const [, setCurrentTime] = useState(new Date())
   const [lastRequestId, setLastRequestId] = useState<string | null>(null)
 
-  useEffect(() => {
-    const loadPrediction = async () => {
-      // Generate a unique request ID
-      const requestId = `${childAge}-${childGender}-${childName}-${recentSessions.length}-${refreshTrigger}`
-      
-      console.log('SleepPrediction useEffect triggered:', {
-        activeSession: !!activeSession,
-        recentSessionsCount: recentSessions.length,
-        refreshTrigger,
-        childAge,
-        requestId
-      })
-      
-      if (activeSession || recentSessions.length === 0) {
-        console.log('Skipping prediction: activeSession or no recent sessions')
-        return
-      }
+  // Memoize request parameters to avoid unnecessary re-renders
+  const requestParams = useMemo(() => ({
+    childAge,
+    childGender,
+    childName,
+    sleepHistory: recentSessions
+  }), [childAge, childGender, childName, recentSessions])
 
-      // Check if this is a duplicate request
-      if (lastRequestId === requestId) {
-        console.log('Skipping duplicate request:', requestId)
-        return
-      }
+  // Memoize request ID calculation
+  const requestId = useMemo(() => {
+    const lastSleepTime = recentSessions.length > 0 ? recentSessions[0].end_time : null
+    // Round time to nearest 5 minutes to reduce unnecessary calls
+    const roundedTime = lastSleepTime ? Math.floor(new Date(lastSleepTime).getTime() / (5 * 60 * 1000)) : 0
+    return `${childAge}-${childGender}-${childName}-${recentSessions.length}-${roundedTime}-${refreshTrigger}`
+  }, [childAge, childGender, childName, recentSessions, refreshTrigger])
 
-      console.log('Loading new prediction...')
-      setLastRequestId(requestId)
-      setLoading(true)
-      setError(null)
-
-      try {
-        const response = await fetch('/api/predict-sleep', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            childAge,
-            childGender,
-            childName,
-            sleepHistory: recentSessions
-          })
-        })
-        
-        if (!response.ok) {
-          throw new Error('Failed to get prediction')
-        }
-        
-        const result = await response.json()
-        console.log('Prediction loaded successfully:', result)
-        setPrediction(result)
-      } catch (err) {
-        setError('Prediction temporarily unavailable due to high demand. Please try again in a few minutes.')
-        console.error('Prediction error:', err)
-      } finally {
-        setLoading(false)
-      }
+  const loadPrediction = useCallback(async () => {
+    console.log('SleepPrediction useEffect triggered:', {
+      activeSession: !!activeSession,
+      recentSessionsCount: recentSessions.length,
+      refreshTrigger,
+      childAge,
+      requestId
+    })
+    
+    if (activeSession || recentSessions.length === 0) {
+      console.log('Skipping prediction: activeSession or no recent sessions')
+      return
     }
 
+    // Check if this is a duplicate request
+    if (lastRequestId === requestId) {
+      console.log('Skipping duplicate request:', requestId)
+      return
+    }
+
+    console.log('Loading new prediction...')
+    setLastRequestId(requestId)
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/predict-sleep', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestParams)
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to get prediction')
+      }
+      
+      const result = await response.json()
+      console.log('Prediction loaded successfully:', result)
+      setPrediction(result)
+    } catch (err) {
+      setError('Prediction temporarily unavailable due to high demand. Please try again in a few minutes.')
+      console.error('Prediction error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [activeSession, recentSessions, requestId, lastRequestId, requestParams, childAge, refreshTrigger])
+
+  useEffect(() => {
     // Debounce the prediction requests to avoid rapid calls
     const timeoutId = setTimeout(loadPrediction, 1000)
     return () => clearTimeout(timeoutId)
-  }, [childAge, recentSessions, activeSession, refreshTrigger, childGender, childName, lastRequestId])
+  }, [loadPrediction])
 
   // Update current time every second for real-time "Time awake" display
   useEffect(() => {
@@ -107,21 +115,23 @@ export default function SleepPrediction({
     return () => clearInterval(timer)
   }, [])
 
-  const getTimeSinceLastSleep = () => {
+  const getTimeSinceLastSleep = useCallback(() => {
     if (recentSessions.length === 0) return null
     
     const lastSession = recentSessions[0]
     if (!lastSession.end_time) return null
 
-    const endTime = new Date(lastSession.end_time)
-    const diffMinutes = Math.floor((currentTime.getTime() - endTime.getTime()) / (1000 * 60))
+    // Both times should be in UTC for accurate calculation
+    const endTimeUTC = new Date(lastSession.end_time) // Database stores UTC
+    const currentTimeUTC = new Date() // Current time in UTC
+    const diffMinutes = Math.floor((currentTimeUTC.getTime() - endTimeUTC.getTime()) / (1000 * 60))
     
     const hours = Math.floor(diffMinutes / 60)
     const minutes = diffMinutes % 60
     
     if (hours === 0) return `${minutes}m ago`
     return `${hours}h ${minutes}m ago`
-  }
+  }, [recentSessions])
 
   const timeSinceLastSleep = getTimeSinceLastSleep()
 
@@ -200,7 +210,11 @@ export default function SleepPrediction({
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-700">Next bedtime:</span>
                     <span className="font-semibold text-purple-800">
-                      {new Date(prediction.nextBedtime).toLocaleTimeString()}
+                      {new Date(prediction.nextBedtime).toLocaleTimeString(undefined, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })}
                     </span>
                   </div>
                   
