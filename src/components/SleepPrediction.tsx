@@ -30,6 +30,8 @@ export default function SleepPrediction({
   childName = 'Baby'
 }: SleepPredictionProps) {
   const [prediction, setPrediction] = useState<SleepPrediction | null>(null)
+  const [predictionText, setPredictionText] = useState<PredictionText | null>(null)
+  const [realTimeMetrics, setRealTimeMetrics] = useState<{nextBedtime: string, timeUntilBedtime: string, expectedDuration: string} | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [, setCurrentTime] = useState(new Date())
@@ -43,12 +45,11 @@ export default function SleepPrediction({
     sleepHistory: recentSessions
   }), [childAge, childGender, childName, recentSessions])
 
-  // Memoize request ID calculation
-  const requestId = useMemo(() => {
+  // Request ID for prediction text (only changes when sleep records change)
+  const textRequestId = useMemo(() => {
     const lastSleepTime = recentSessions.length > 0 ? recentSessions[0].end_time : null
-    // Round time to nearest 5 minutes to reduce unnecessary calls
-    const roundedTime = lastSleepTime ? Math.floor(new Date(lastSleepTime).getTime() / (5 * 60 * 1000)) : 0
-    return `${childAge}-${childGender}-${childName}-${recentSessions.length}-${roundedTime}-${refreshTrigger}`
+    const roundedLastSleep = lastSleepTime ? Math.floor(new Date(lastSleepTime).getTime() / (5 * 60 * 1000)) : 0
+    return `${childAge}-${childGender}-${childName}-${recentSessions.length}-${roundedLastSleep}-${refreshTrigger}`
   }, [childAge, childGender, childName, recentSessions, refreshTrigger])
 
   const loadPrediction = useCallback(async () => {
@@ -57,7 +58,7 @@ export default function SleepPrediction({
       recentSessionsCount: recentSessions.length,
       refreshTrigger,
       childAge,
-      requestId
+      textRequestId
     })
     
     if (activeSession || recentSessions.length === 0) {
@@ -66,13 +67,13 @@ export default function SleepPrediction({
     }
 
     // Check if this is a duplicate request
-    if (lastRequestId === requestId) {
-      console.log('Skipping duplicate request:', requestId)
+    if (lastRequestId === textRequestId) {
+      console.log('Skipping duplicate request:', textRequestId)
       return
     }
 
     console.log('Loading new prediction...')
-    setLastRequestId(requestId)
+    setLastRequestId(textRequestId)
     setLoading(true)
     setError(null)
 
@@ -92,13 +93,20 @@ export default function SleepPrediction({
       const result = await response.json()
       console.log('Prediction loaded successfully:', result)
       setPrediction(result)
+      // Store prediction text separately
+      setPredictionText({
+        summary: result.summary,
+        reasoning: result.reasoning,
+        confidence: result.confidence,
+        expectedDuration: result.expectedDuration
+      })
     } catch (err) {
       setError('Prediction temporarily unavailable due to high demand. Please try again in a few minutes.')
       console.error('Prediction error:', err)
     } finally {
       setLoading(false)
     }
-  }, [activeSession, recentSessions, requestId, lastRequestId, requestParams, childAge, refreshTrigger])
+  }, [activeSession, recentSessions, textRequestId, lastRequestId, requestParams, childAge, refreshTrigger])
 
   useEffect(() => {
     // Debounce the prediction requests to avoid rapid calls
@@ -106,14 +114,67 @@ export default function SleepPrediction({
     return () => clearTimeout(timeoutId)
   }, [loadPrediction])
 
-  // Update current time every second for real-time "Time awake" display
+  // Calculate real-time metrics based on current time and last prediction
+  const calculateRealTimeMetrics = useCallback(() => {
+    if (recentSessions.length === 0) return null
+    
+    // Get age-based recommendations for real-time calculation
+    const getAgeBasedRecommendations = (ageInMonths: number) => {
+      if (ageInMonths <= 3) return { wakeWindow: 45, sleepDuration: 120 } // newborn
+      if (ageInMonths <= 6) return { wakeWindow: 90, sleepDuration: 90 } // infant
+      if (ageInMonths <= 12) return { wakeWindow: 120, sleepDuration: 90 } // older infant
+      if (ageInMonths <= 24) return { wakeWindow: 180, sleepDuration: 120 } // toddler
+      return { wakeWindow: 240, sleepDuration: 90 } // young child
+    }
+    
+    const recommendations = getAgeBasedRecommendations(childAge)
+    const { wakeWindow, sleepDuration } = recommendations
+    const nowUTC = new Date()
+    const lastSession = recentSessions[0]
+    
+    if (!lastSession.end_time) return null
+    
+    const lastSleepEnd = new Date(lastSession.end_time)
+    const timeSinceLastSleep = Math.floor((nowUTC.getTime() - lastSleepEnd.getTime()) / (1000 * 60))
+    const timeUntilBedtime = Math.max(0, wakeWindow - timeSinceLastSleep)
+    const nextBedtime = new Date(nowUTC.getTime() + timeUntilBedtime * 60 * 1000)
+    
+    const formatTime = (minutes: number): string => {
+      const hours = Math.floor(minutes / 60)
+      const mins = minutes % 60
+      
+      if (hours === 0) return `${mins} minutes`
+      if (mins === 0) return `${hours} hours`
+      return `${hours} hours ${mins} minutes`
+    }
+    
+    return {
+      nextBedtime: nextBedtime.toLocaleTimeString(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      }),
+      timeUntilBedtime: formatTime(timeUntilBedtime),
+      expectedDuration: formatTime(sleepDuration)
+    }
+  }, [recentSessions, childAge])
+  
+  // Update current time and real-time metrics every minute
   useEffect(() => {
-    const timer = setInterval(() => {
+    const updateMetrics = () => {
       setCurrentTime(new Date())
-    }, 1000)
+      const metrics = calculateRealTimeMetrics()
+      setRealTimeMetrics(metrics)
+    }
+    
+    // Update immediately
+    updateMetrics()
+    
+    // Then update every minute
+    const timer = setInterval(updateMetrics, 60000)
     
     return () => clearInterval(timer)
-  }, [])
+  }, [calculateRealTimeMetrics])
 
   const getTimeSinceLastSleep = useCallback(() => {
     if (recentSessions.length === 0) return null
@@ -204,38 +265,38 @@ export default function SleepPrediction({
               </div>
             )}
 
-            {prediction && !loading && (
+            {(prediction || realTimeMetrics) && !loading && (
               <div className="p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-700">Next bedtime:</span>
                     <span className="font-semibold text-purple-800">
-                      {new Date(prediction.nextBedtime).toLocaleTimeString(undefined, {
+                      {realTimeMetrics?.nextBedtime || (prediction ? new Date(prediction.nextBedtime).toLocaleTimeString(undefined, {
                         hour: '2-digit',
                         minute: '2-digit',
                         hour12: true
-                      })}
+                      }) : 'Calculating...')}
                     </span>
                   </div>
                   
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-700">Time until:</span>
                     <span className="font-semibold text-pink-800">
-                      {prediction.timeUntilBedtime}
+                      {realTimeMetrics?.timeUntilBedtime || prediction?.timeUntilBedtime || 'Calculating...'}
                     </span>
                   </div>
                   
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-700">Expected duration:</span>
                     <span className="font-semibold text-blue-800">
-                      {prediction.expectedDuration}
+                      {realTimeMetrics?.expectedDuration || predictionText?.expectedDuration || prediction?.expectedDuration || 'Calculating...'}
                     </span>
                   </div>
                   
-                  {prediction.summary && (
+                  {(predictionText?.summary || prediction?.summary) && (
                     <div className="pt-2 border-t border-purple-200">
                       <p className="text-sm text-purple-700 font-medium">
-                        {prediction.summary}
+                        {predictionText?.summary || prediction?.summary}
                       </p>
                     </div>
                   )}
@@ -246,11 +307,11 @@ export default function SleepPrediction({
                       <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-gradient-to-r from-pink-400 to-purple-400 transition-all duration-300"
-                          style={{ width: `${(prediction.confidence * 100)}%` }}
+                          style={{ width: `${((predictionText?.confidence || prediction?.confidence || 0.7) * 100)}%` }}
                         />
                       </div>
                       <span className="text-xs text-gray-600">
-                        {Math.round(prediction.confidence * 100)}%
+                        {Math.round((predictionText?.confidence || prediction?.confidence || 0.7) * 100)}%
                       </span>
                     </div>
                   </div>

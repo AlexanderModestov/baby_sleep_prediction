@@ -11,14 +11,19 @@ export async function POST(request: NextRequest) {
     console.log(`Child Gender: ${childGender}`)
     console.log(`Sleep History Length: ${sleepHistory?.length || 0}`)
 
-    // Generate cache key
-    const cacheKey = predictionCache.generateKey(childAge, sleepHistory, childGender || 'unknown', childName || 'Baby')
+    // Only cache LLM predictions (3+ sessions), not general recommendations
+    const shouldCache = sleepHistory?.length >= 3
+    let cacheKey = ''
     
-    // Check cache first
-    const cachedPrediction = predictionCache.get(cacheKey)
-    if (cachedPrediction) {
-      console.log('=== RETURNING CACHED PREDICTION ===')
-      return NextResponse.json(cachedPrediction)
+    if (shouldCache) {
+      cacheKey = predictionCache.generateKey(childAge, sleepHistory, childGender || 'unknown', childName || 'Baby')
+      
+      // Check cache first for LLM predictions only
+      const cachedPrediction = predictionCache.get(cacheKey)
+      if (cachedPrediction) {
+        console.log('=== RETURNING CACHED LLM PREDICTION ===')
+        return NextResponse.json(cachedPrediction)
+      }
     }
 
     console.log('=== CALLING ORCHESTRATOR ===')
@@ -26,8 +31,10 @@ export async function POST(request: NextRequest) {
     // Use orchestrator to handle LLM provider selection and prediction
     const prediction = await predictNextSleep(childAge, sleepHistory, childGender || 'unknown', childName || 'Baby')
     
-    // Cache the result
-    predictionCache.set(cacheKey, prediction)
+    // Cache only LLM predictions (not general recommendations)
+    if (shouldCache) {
+      predictionCache.set(cacheKey, prediction)
+    }
     
     console.log('=== API ROUTE PREDICTION SUCCESS ===')
     console.log(JSON.stringify(prediction, null, 2))

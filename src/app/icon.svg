@@ -1,0 +1,15 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="16" cy="16" r="16" fill="#4F46E5"/>
+  
+  <!-- Crescent moon -->
+  <path d="M11 8c-3.5 0-6.5 3-6.5 6.5S7.5 21 11 21c1.2 0 2.3-.3 3.2-.9-2.1-1.5-3.5-4-3.5-6.8s1.4-5.3 3.5-6.8c-.9-.6-2-.5-3.2-.5z" fill="#FEF3C7"/>
+  
+  <!-- Star -->
+  <path d="M22 10l1.5 3 3 .5-2.2 2.1.5 3-2.8-1.5L19 18.6l.5-3L17.3 13.5l3-.5L22 10z" fill="#FDE047"/>
+  
+  <!-- Small sparkles -->
+  <circle cx="26" cy="14" r="1" fill="#FDE047"/>
+  <circle cx="24" cy="22" r="0.8" fill="#FEF3C7"/>
+  <circle cx="8" cy="24" r="0.8" fill="#FDE047"/>
+</svg>
