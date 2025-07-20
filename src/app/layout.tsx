@@ -8,10 +8,11 @@ export const metadata: Metadata = {
   title: "Baby Sleep Tracker",
   description: "Track your baby's sleep patterns and get AI-powered predictions",
   manifest: "/manifest.json",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
   themeColor: "#f093fb",
 };
 
