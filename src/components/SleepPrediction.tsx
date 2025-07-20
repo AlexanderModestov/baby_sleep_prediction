@@ -12,6 +12,13 @@ interface SleepPrediction {
   reasoning: string
 }
 
+interface PredictionText {
+  summary: string
+  reasoning: string
+  confidence: number
+  expectedDuration: string
+}
+
 interface SleepPredictionProps {
   childAge: number
   recentSessions: SleepSession[]
