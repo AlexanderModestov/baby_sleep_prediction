@@ -21,18 +21,6 @@ export default function SleepPrompts({
     if (recentSessions.length === 0) return 'no-records'
     if (recentSessions.length < 3) return 'insufficient-records'
     
-    const lastSession = recentSessions[0]
-    if (lastSession.end_time) {
-      const lastSleepEnd = new Date(lastSession.end_time)
-      const hoursAgo = (Date.now() - lastSleepEnd.getTime()) / (1000 * 60 * 60)
-      
-      // For babies under 6 months, consider data stale after 24 hours
-      // For older children, after 48 hours
-      const staleThreshold = childAge <= 6 ? 24 : 48
-      
-      if (hoursAgo > staleThreshold) return 'stale-records'
-    }
-    
     return null
   }
 
@@ -73,23 +61,6 @@ export default function SleepPrompts({
           highlight: `Almost there - ${remaining} to go!`,
           bgColor: 'bg-gradient-to-r from-green-50 to-blue-50',
           borderColor: 'border-green-200'
-        }
-        
-      case 'stale-records':
-        const lastSession = recentSessions[0]
-        const hoursAgo = Math.floor((Date.now() - new Date(lastSession.end_time!).getTime()) / (1000 * 60 * 60))
-        const daysAgo = Math.floor(hoursAgo / 24)
-        
-        const timeText = daysAgo > 0 ? `${daysAgo} day${daysAgo > 1 ? 's' : ''}` : `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''}`
-        
-        return {
-          icon: '⏰',
-          title: 'Update sleep records',
-          message: `${childName}'s last recorded sleep was ${timeText} ago. ${ageGroup === 'newborn' ? 'Newborns' : 'Young children'} have frequent sleep cycles, so recent data helps us provide better predictions.`,
-          action: 'Add Recent Sleep',
-          highlight: 'Keep predictions accurate with fresh data',
-          bgColor: 'bg-gradient-to-r from-orange-50 to-yellow-50',
-          borderColor: 'border-orange-200'
         }
         
       default:
