@@ -5,6 +5,8 @@ export interface SleepPrediction {
   confidence: number
   summary: string
   reasoning: string
+  provider?: string
+  model?: string
 }
 
 export interface LLMProvider {

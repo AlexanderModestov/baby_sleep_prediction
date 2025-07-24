@@ -67,7 +67,9 @@ function getGeneralRecommendation(childAge: number, sleepHistory: SleepSession[]
     expectedDuration: formatTime(recommendations.sleepDuration),
     confidence: 0.7,
     summary: `Based on general guidelines for ${recommendations.description}, your baby should be ready for sleep ${timeUntilBedtime > 0 ? `in ${formatTime(timeUntilBedtime)}` : 'now'}.`,
-    reasoning: `This is a general recommendation based on typical sleep patterns for ${recommendations.description}. ${recommendations.description.charAt(0).toUpperCase() + recommendations.description.slice(1)} typically need ${formatTime(recommendations.wakeWindow)} wake windows between sleeps and sleep for about ${formatTime(recommendations.sleepDuration)}. ${sleepHistory.length === 0 ? 'Start tracking more sleep sessions to get personalized AI predictions based on your baby\'s unique patterns.' : `We need at least 3 sleep sessions to provide personalized predictions. You currently have ${sleepHistory.length} session${sleepHistory.length === 1 ? '' : 's'} recorded.`}`
+    reasoning: `This is a general recommendation based on typical sleep patterns for ${recommendations.description}. ${recommendations.description.charAt(0).toUpperCase() + recommendations.description.slice(1)} typically need ${formatTime(recommendations.wakeWindow)} wake windows between sleeps and sleep for about ${formatTime(recommendations.sleepDuration)}. ${sleepHistory.length === 0 ? 'Start tracking more sleep sessions to get personalized AI predictions based on your baby\'s unique patterns.' : `We need at least 3 sleep sessions to provide personalized predictions. You currently have ${sleepHistory.length} session${sleepHistory.length === 1 ? '' : 's'} recorded.`}`,
+    provider: 'general',
+    model: null
   }
 }
 
@@ -173,11 +175,18 @@ export async function predictNextSleep(
     // Generate prediction using the selected provider
     const prediction = await provider.generateSleepPrediction(prompt)
     
+    // Add provider and model info to the prediction
+    const enhancedPrediction = {
+      ...prediction,
+      provider: llmConfig.provider,
+      model: llmConfig.model
+    }
+    
     console.log('=== PREDICTION RESULT ===')
-    console.log(JSON.stringify(prediction, null, 2))
+    console.log(JSON.stringify(enhancedPrediction, null, 2))
     console.log('=== END PREDICTION RESULT ===')
     
-    return prediction
+    return enhancedPrediction
   } catch (error) {
     console.error('Error predicting sleep:', error)
     
