@@ -27,6 +27,7 @@ interface SleepPredictionProps {
   refreshTrigger?: number
   childGender?: string
   childName?: string
+  childId?: string
   onScrollToTracker?: () => void
   onQuickStart?: () => void
 }
@@ -38,6 +39,7 @@ export default function SleepPrediction({
   refreshTrigger,
   childGender = 'unknown',
   childName = 'Baby',
+  childId,
   onScrollToTracker,
   onQuickStart
 }: SleepPredictionProps) {
@@ -119,7 +121,7 @@ export default function SleepPrediction({
         },
         body: JSON.stringify({
           ...requestParams,
-          childId: child.id
+          childId: childId
         }),
         signal: abortControllerRef.current.signal
       })

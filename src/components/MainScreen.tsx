@@ -163,6 +163,7 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
             refreshTrigger={refreshTrigger}
             childGender={selectedChild.gender}
             childName={selectedChild.name}
+            childId={selectedChild.id}
             onScrollToTracker={scrollToSleepTracker}
           />
 
