@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { SleepSession } from '@/lib/supabase'
 import Button from './ui/Button'
 import Card from './ui/Card'
+import SleepPrompts from './SleepPrompts'
 
 interface SleepPrediction {
   nextBedtime: string
@@ -26,6 +27,8 @@ interface SleepPredictionProps {
   refreshTrigger?: number
   childGender?: string
   childName?: string
+  onScrollToTracker?: () => void
+  onQuickStart?: () => void
 }
 
 export default function SleepPrediction({ 
@@ -34,7 +37,9 @@ export default function SleepPrediction({
   activeSession,
   refreshTrigger,
   childGender = 'unknown',
-  childName = 'Baby'
+  childName = 'Baby',
+  onScrollToTracker,
+  onQuickStart
 }: SleepPredictionProps) {
   const [prediction, setPrediction] = useState<SleepPrediction | null>(null)
   const [predictionText, setPredictionText] = useState<PredictionText | null>(null)
@@ -43,39 +48,52 @@ export default function SleepPrediction({
   const [error, setError] = useState<string | null>(null)
   const [, setCurrentTime] = useState(new Date())
   const [lastRequestId, setLastRequestId] = useState<string | null>(null)
+  const [isRequestInFlight, setIsRequestInFlight] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Stabilize recentSessions to prevent unnecessary re-renders
+  const sessionsSignature = useMemo(() => 
+    recentSessions.map(s => `${s.id}-${s.start_time}-${s.end_time}`).join(','),
+    [recentSessions]
+  )
+  
+  const stableRecentSessions = useMemo(() => recentSessions, [sessionsSignature])
 
   // Memoize request parameters to avoid unnecessary re-renders
   const requestParams = useMemo(() => ({
     childAge,
     childGender,
     childName,
-    sleepHistory: recentSessions
-  }), [childAge, childGender, childName, recentSessions])
+    sleepHistory: stableRecentSessions
+  }), [childAge, childGender, childName, stableRecentSessions])
 
-  // Request ID for prediction text (only changes when sleep records change)
+  // Request ID for prediction text (stable, doesn't include refreshTrigger)
   const textRequestId = useMemo(() => {
-    const lastSleepTime = recentSessions.length > 0 ? recentSessions[0].end_time : null
+    const lastSleepTime = stableRecentSessions.length > 0 ? stableRecentSessions[0].end_time : null
     const roundedLastSleep = lastSleepTime ? Math.floor(new Date(lastSleepTime).getTime() / (5 * 60 * 1000)) : 0
-    return `${childAge}-${childGender}-${childName}-${recentSessions.length}-${roundedLastSleep}-${refreshTrigger}`
-  }, [childAge, childGender, childName, recentSessions, refreshTrigger])
+    return `${childAge}-${childGender}-${childName}-${stableRecentSessions.length}-${roundedLastSleep}`
+  }, [childAge, childGender, childName, stableRecentSessions])
+
+  // Separate trigger for handling session deletions without affecting textRequestId
+  const shouldRefresh = useMemo(() => refreshTrigger, [refreshTrigger])
 
   const loadPrediction = useCallback(async () => {
     console.log('SleepPrediction useEffect triggered:', {
       activeSession: !!activeSession,
-      recentSessionsCount: recentSessions.length,
-      refreshTrigger,
+      recentSessionsCount: stableRecentSessions.length,
       childAge,
-      textRequestId
+      textRequestId,
+      isRequestInFlight
     })
     
-    if (activeSession || recentSessions.length === 0) {
+    if (activeSession || stableRecentSessions.length === 0) {
       console.log('Skipping prediction: activeSession or no recent sessions')
       return
     }
 
-    // Check if this is a duplicate request
-    if (lastRequestId === textRequestId) {
-      console.log('Skipping duplicate request:', textRequestId)
+    // Check if this is a duplicate request or request already in flight
+    if (lastRequestId === textRequestId || isRequestInFlight) {
+      console.log('Skipping duplicate/in-flight request:', textRequestId)
       return
     }
 
@@ -83,6 +101,15 @@ export default function SleepPrediction({
     setLastRequestId(textRequestId)
     setLoading(true)
     setError(null)
+    setIsRequestInFlight(true)
+
+    // Cancel any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    
+    // Create new abort controller
+    abortControllerRef.current = new AbortController()
 
     try {
       const response = await fetch('/api/predict-sleep', {
@@ -90,7 +117,8 @@ export default function SleepPrediction({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestParams)
+        body: JSON.stringify(requestParams),
+        signal: abortControllerRef.current.signal
       })
       
       if (!response.ok) {
@@ -107,13 +135,18 @@ export default function SleepPrediction({
         confidence: result.confidence,
         expectedDuration: result.expectedDuration
       })
-    } catch (err) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('Request was cancelled')
+        return
+      }
       setError('Prediction temporarily unavailable due to high demand. Please try again in a few minutes.')
       console.error('Prediction error:', err)
     } finally {
       setLoading(false)
+      setIsRequestInFlight(false)
     }
-  }, [activeSession, recentSessions, textRequestId, lastRequestId, requestParams, childAge, refreshTrigger])
+  }, [activeSession, stableRecentSessions, textRequestId, lastRequestId, requestParams, childAge, isRequestInFlight])
 
   useEffect(() => {
     // Debounce the prediction requests to avoid rapid calls
@@ -121,9 +154,19 @@ export default function SleepPrediction({
     return () => clearTimeout(timeoutId)
   }, [loadPrediction])
 
+  // Handle refresh trigger separately to clear cached data without triggering new request
+  useEffect(() => {
+    if (shouldRefresh && shouldRefresh > 0) {
+      console.log('Handling refresh trigger, clearing cached prediction')
+      setPrediction(null)
+      setPredictionText(null)
+      setLastRequestId(null)
+    }
+  }, [shouldRefresh])
+
   // Calculate real-time metrics based on current time and last prediction
   const calculateRealTimeMetrics = useCallback(() => {
-    if (recentSessions.length === 0) return null
+    if (stableRecentSessions.length === 0) return null
     
     // Get age-based recommendations for real-time calculation
     const getAgeBasedRecommendations = (ageInMonths: number) => {
@@ -137,7 +180,7 @@ export default function SleepPrediction({
     const recommendations = getAgeBasedRecommendations(childAge)
     const { wakeWindow, sleepDuration } = recommendations
     const nowUTC = new Date()
-    const lastSession = recentSessions[0]
+    const lastSession = stableRecentSessions[0]
     
     if (!lastSession.end_time) return null
     
@@ -164,7 +207,7 @@ export default function SleepPrediction({
       timeUntilBedtime: formatTime(timeUntilBedtime),
       expectedDuration: formatTime(sleepDuration)
     }
-  }, [recentSessions, childAge])
+  }, [stableRecentSessions, childAge])
   
   // Update current time and real-time metrics every minute
   useEffect(() => {
@@ -184,9 +227,9 @@ export default function SleepPrediction({
   }, [calculateRealTimeMetrics])
 
   const getTimeSinceLastSleep = useCallback(() => {
-    if (recentSessions.length === 0) return null
+    if (stableRecentSessions.length === 0) return null
     
-    const lastSession = recentSessions[0]
+    const lastSession = stableRecentSessions[0]
     if (!lastSession.end_time) return null
 
     // Both times should be in UTC for accurate calculation
@@ -199,7 +242,7 @@ export default function SleepPrediction({
     
     if (hours === 0) return `${minutes}m ago`
     return `${hours}h ${minutes}m ago`
-  }, [recentSessions])
+  }, [stableRecentSessions])
 
   const timeSinceLastSleep = getTimeSinceLastSleep()
 
@@ -326,12 +369,14 @@ export default function SleepPrediction({
               </div>
             )}
 
-            {recentSessions.length === 0 && (
-              <div className="p-4 bg-gray-50 rounded-xl text-center">
-                <p className="text-gray-600">
-                  Start tracking sleep to get AI-powered predictions
-                </p>
-              </div>
+            {!loading && !error && !(prediction || realTimeMetrics) && (
+              <SleepPrompts
+                recentSessions={stableRecentSessions}
+                childAge={childAge}
+                childName={childName}
+                onScrollToTracker={onScrollToTracker || (() => {})}
+                onQuickStart={onQuickStart}
+              />
             )}
           </div>
         )}
