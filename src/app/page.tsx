@@ -13,9 +13,9 @@ import ClientOnly from '@/components/ClientOnly'
 import { Child } from '@/lib/supabase'
 
 function AppContent() {
-  const { isReady } = useTelegram()
+  const { user, isReady } = useTelegram()
   const { children, loading } = useChildren()
-  const [currentView, setCurrentView] = useState<'welcome' | 'add-child' | 'edit-child' | 'main'>('welcome')
+  const [currentView, setCurrentView] = useState<'welcome' | 'add-child' | 'edit-child' | 'main' | 'unregistered'>('welcome')
   const [editingChild, setEditingChild] = useState<Child | null>(null)
   
   // Automatically detect and apply appropriate theme
@@ -23,13 +23,16 @@ function AppContent() {
 
   useEffect(() => {
     if (isReady && !loading) {
-      if (children.length === 0) {
+      // Check if user is unregistered (opened from contact list without bot interaction)
+      if (user?.id === 0) {
+        setCurrentView('unregistered')
+      } else if (children.length === 0) {
         setCurrentView('welcome')
       } else {
         setCurrentView('main')
       }
     }
-  }, [isReady, loading, children.length])
+  }, [isReady, loading, children.length, user?.id])
 
   if (!isReady || loading) {
     return (
@@ -44,6 +47,21 @@ function AppContent() {
 
   return (
     <div className="container mx-auto px-4 py-8 min-h-screen">
+      {currentView === 'unregistered' && (
+        <Card className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">👋 Welcome to Baby Sleep Tracker!</h1>
+          <p className="text-gray-600 mb-6">
+            To get started, you need to register with our bot first.
+          </p>
+          <p className="text-sm text-gray-500 mb-6">
+            Please open a chat with @BabySleepControllerBot and send /start to register your account.
+          </p>
+          <div className="text-xs text-gray-400">
+            After registration, you can return here to track your baby's sleep patterns.
+          </div>
+        </Card>
+      )}
+      
       {currentView === 'welcome' && (
         <WelcomeScreen onAddChild={() => setCurrentView('add-child')} />
       )}

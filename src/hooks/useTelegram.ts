@@ -95,8 +95,9 @@ export function useTelegram() {
             setUser(errorUser)
           }
         } else {
-          // Fallback for web app without user data
-          setUser({ id: 123456, first_name: 'Demo User' })
+          console.log('No Telegram user data in initDataUnsafe')
+          // Show message to user that they need to register via bot
+          setUser({ id: 0, first_name: 'Unregistered User' })
         }
       } else {
         // Check URL parameters for telegram user data (for testing)

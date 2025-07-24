@@ -117,7 +117,10 @@ export default function SleepPrediction({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestParams),
+        body: JSON.stringify({
+          ...requestParams,
+          childId: child.id
+        }),
         signal: abortControllerRef.current.signal
       })
       

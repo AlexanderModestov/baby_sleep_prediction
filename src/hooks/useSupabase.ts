@@ -219,6 +219,58 @@ export function useSleepSessions(childId?: string) {
     }
   }
 
+  const savePrediction = async (childId: string, predictionData: {
+    next_bedtime: string
+    time_until_bedtime: string
+    expected_duration: string
+    confidence: number
+    summary: string
+    reasoning: string
+    llm_provider: string
+    model_used?: string
+    session_count: number
+    generation_time_ms?: number
+    child_age_months: number
+    input_sessions_hash: string
+  }) => {
+    try {
+      const { data, error } = await supabase
+        .from('predictions')
+        .insert([{
+          child_id: childId,
+          ...predictionData
+        }])
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save prediction')
+      throw err
+    }
+  }
+
+  const updatePredictionFeedback = async (predictionId: string, feedback: string, notes?: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('predictions')
+        .update({
+          user_feedback: feedback,
+          feedback_notes: notes || null
+        })
+        .eq('id', predictionId)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update prediction feedback')
+      throw err
+    }
+  }
+
   return {
     sessions,
     loading,
@@ -227,6 +279,8 @@ export function useSleepSessions(childId?: string) {
     endSleepSession,
     updateSleepSession,
     deleteSleepSession,
+    savePrediction,
+    updatePredictionFeedback,
     refetch: fetchSessions
   }
 }

@@ -46,6 +46,16 @@ export const getUserId = async (): Promise<string> => {
             return userData.id // Return Supabase user ID
           }
         }
+        
+        // If user doesn't exist in database but we have telegram ID, 
+        // try to register them with basic Telegram data
+        if ((window as WindowWithTelegram).Telegram?.WebApp?.initDataUnsafe?.user) {
+          const telegramUser = (window as WindowWithTelegram).Telegram!.WebApp.initDataUnsafe!.user!
+          const registeredUserId = await registerTelegramUser(telegramUser)
+          if (registeredUserId) {
+            return registeredUserId
+          }
+        }
       } catch (error) {
         console.error('Error fetching user data:', error)
       }
