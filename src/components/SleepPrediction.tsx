@@ -57,7 +57,7 @@ export default function SleepPrediction({
     [recentSessions]
   )
   
-  const stableRecentSessions = useMemo(() => recentSessions, [sessionsSignature])
+  const stableRecentSessions = useMemo(() => recentSessions, [recentSessions, sessionsSignature])
 
   // Memoize request parameters to avoid unnecessary re-renders
   const requestParams = useMemo(() => ({

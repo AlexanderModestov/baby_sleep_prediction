@@ -57,7 +57,7 @@ function AppContent() {
             Please open a chat with @BabySleepControllerBot and send /start to register your account.
           </p>
           <div className="text-xs text-gray-400">
-            After registration, you can return here to track your baby's sleep patterns.
+            After registration, you can return here to track your baby&apos;s sleep patterns.
           </div>
         </Card>
       )}
