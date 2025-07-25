@@ -359,7 +359,35 @@ export default function SleepPrediction({
             )}
 
             {(prediction || realTimeMetrics) && !loading && (
-              <div className="p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl">
+              <div className={`p-4 rounded-xl ${
+                prediction?.summary?.includes('⚠️ Missing sleep records') 
+                  ? 'bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200' 
+                  : 'bg-gradient-to-r from-pink-50 to-purple-50'
+              }`}>
+                {/* Warning message for missing sleep records */}
+                {prediction?.summary?.includes('⚠️ Missing sleep records') && (
+                  <div className="mb-4 p-3 bg-orange-100 border border-orange-300 rounded-lg">
+                    <div className="flex items-start space-x-2">
+                      <span className="text-orange-600 text-lg">⚠️</span>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-orange-800 mb-1">
+                          Sleep Records Missing
+                        </p>
+                        <p className="text-xs text-orange-700">
+                          Add missed sleep sessions for accurate AI predictions
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onScrollToTracker?.()}
+                        className="ml-2 text-xs px-2 py-1 border-orange-300 text-orange-700 hover:bg-orange-100"
+                      >
+                        Add Session
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-700">Next bedtime:</span>
@@ -393,21 +421,6 @@ export default function SleepPrediction({
                       </p>
                     </div>
                   )}
-                  
-                  <div className="flex items-center justify-between pt-2">
-                    <span className="text-xs text-gray-500">Confidence:</span>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-pink-400 to-purple-400 transition-all duration-300"
-                          style={{ width: `${((predictionText?.confidence || prediction?.confidence || 0.7) * 100)}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-600">
-                        {Math.round((predictionText?.confidence || prediction?.confidence || 0.7) * 100)}%
-                      </span>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}

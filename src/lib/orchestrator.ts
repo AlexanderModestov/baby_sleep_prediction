@@ -73,6 +73,42 @@ function getGeneralRecommendation(childAge: number, sleepHistory: SleepSession[]
   }
 }
 
+function getGeneralRecommendationWithGapMessage(childAge: number, sleepHistory: SleepSession[], hoursSinceLastWake: number): SleepPrediction {
+  const recommendations = getAgeBasedRecommendations(childAge)
+  const nowUTC = new Date()
+  
+  // Calculate time since last sleep
+  let timeSinceLastSleep = 0
+  let lastSleepEnd = null
+  
+  if (sleepHistory.length > 0) {
+    const lastSession = sleepHistory[0]
+    if (lastSession.end_time) {
+      lastSleepEnd = new Date(lastSession.end_time)
+      timeSinceLastSleep = Math.floor((nowUTC.getTime() - lastSleepEnd.getTime()) / (1000 * 60))
+    }
+  }
+  
+  // Calculate recommended next bedtime
+  const timeUntilBedtime = Math.max(0, recommendations.wakeWindow - timeSinceLastSleep)
+  const nextBedtime = new Date(nowUTC.getTime() + timeUntilBedtime * 60 * 1000)
+  
+  const hoursText = hoursSinceLastWake >= 24 ? 
+    `${Math.floor(hoursSinceLastWake / 24)} day${Math.floor(hoursSinceLastWake / 24) > 1 ? 's' : ''} and ${Math.floor(hoursSinceLastWake % 24)} hour${Math.floor(hoursSinceLastWake % 24) !== 1 ? 's' : ''}` :
+    `${Math.floor(hoursSinceLastWake)} hour${Math.floor(hoursSinceLastWake) !== 1 ? 's' : ''}`
+  
+  return {
+    nextBedtime: nextBedtime.toISOString(),
+    timeUntilBedtime: formatTime(timeUntilBedtime),
+    expectedDuration: formatTime(recommendations.sleepDuration),
+    confidence: 0.6, // Lower confidence due to missing data
+    summary: `⚠️ Missing sleep records detected! It's been ${hoursText} since your last recorded sleep. Please add any missed sleep sessions for better predictions.`,
+    reasoning: `We haven't seen any sleep records for ${hoursText}, which suggests some sleep sessions might be missing. For accurate AI predictions, we need complete sleep tracking data. Please:\n\n• Add any sleep sessions you may have missed\n• Record future sleep sessions promptly\n• With consistent tracking, you'll get personalized AI predictions\n\nIn the meantime, here's a general recommendation based on typical patterns for ${recommendations.description}.`,
+    provider: 'general',
+    model: undefined
+  }
+}
+
 function createProvider(config: { provider: string; apiKey: string; model: string }): LLMProvider {
   switch (config.provider) {
     case 'openai':
@@ -154,6 +190,19 @@ export async function predictNextSleep(
     if (sleepHistory.length < 3) {
       console.log('Using general recommendation - insufficient sleep history')
       return getGeneralRecommendation(childAge, sleepHistory)
+    }
+
+    // Check if user hasn't recorded sleep for 5+ hours since last wake up
+    const lastSession = sleepHistory[0]
+    if (lastSession && lastSession.end_time) {
+      const lastWakeTime = new Date(lastSession.end_time)
+      const now = new Date()
+      const hoursSinceLastWake = (now.getTime() - lastWakeTime.getTime()) / (1000 * 60 * 60)
+      
+      if (hoursSinceLastWake >= 5) {
+        console.log(`Using general recommendation - ${hoursSinceLastWake.toFixed(1)} hours since last sleep session`)
+        return getGeneralRecommendationWithGapMessage(childAge, sleepHistory, hoursSinceLastWake)
+      }
     }
 
     // Get LLM configuration from environment variables
