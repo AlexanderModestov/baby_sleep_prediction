@@ -8,7 +8,6 @@ import SwipeableChildSelector from './ui/SwipeableChildSelector'
 import SleepTracker from './SleepTracker'
 import SleepPrediction from './SleepPrediction'
 import SleepHistory from './SleepHistory'
-import SleepMotivationPopup from './SleepMotivationPopup'
 
 interface MainScreenProps {
   onAddChild: () => void
@@ -21,7 +20,6 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [lastDeletedId, setLastDeletedId] = useState<string | null>(null)
-  const [showMotivationPopup, setShowMotivationPopup] = useState(false)
   const sleepTrackerRef = useRef<HTMLDivElement>(null)
   const { sessions, loading: sessionsLoading, deleteSleepSession, refetch } = useSleepSessions(selectedChild?.id)
 
@@ -55,47 +53,6 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
     }
   }, [children, selectedChild])
 
-  // Check for motivation popup trigger
-  useEffect(() => {
-    if (selectedChild && sessions.length > 0) {
-      const checkMotivationTrigger = () => {
-        const lastSession = sessions[0]
-        if (!lastSession.end_time) return
-        
-        const childAge = calculateAge(selectedChild.date_of_birth)
-        const getWakeWindow = (ageInMonths: number) => {
-          if (ageInMonths <= 3) return 45
-          if (ageInMonths <= 6) return 90
-          if (ageInMonths <= 12) return 120
-          if (ageInMonths <= 24) return 180
-          return 240
-        }
-        
-        const wakeWindow = getWakeWindow(childAge)
-        const lastSleepEnd = new Date(lastSession.end_time)
-        const now = new Date()
-        const timeSinceLastSleep = Math.floor((now.getTime() - lastSleepEnd.getTime()) / (1000 * 60))
-        
-        // Show popup if time since last sleep is more than twice the recommended wake window
-        if (timeSinceLastSleep > wakeWindow * 2) {
-          // Check if we haven't shown popup recently for this session
-          const lastShownKey = `sleepMotivation_${selectedChild.name}_${lastSession.id}`
-          const lastShown = localStorage.getItem(lastShownKey)
-          const now24h = Date.now() - (24 * 60 * 60 * 1000)
-          
-          if (!lastShown || parseInt(lastShown) < now24h) {
-            setShowMotivationPopup(true)
-          }
-        }
-      }
-      
-      // Check immediately and then every 30 minutes
-      checkMotivationTrigger()
-      const interval = setInterval(checkMotivationTrigger, 30 * 60 * 1000)
-      
-      return () => clearInterval(interval)
-    }
-  }, [selectedChild, sessions])
 
   const activeSession = sessions.find(session => session.is_active)
 
@@ -176,16 +133,6 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
         </>
       )}
 
-      {/* Sleep Motivation Popup */}
-      {showMotivationPopup && selectedChild && (
-        <SleepMotivationPopup
-          recentSessions={sessions.slice(0, 10)}
-          childAge={calculateAge(selectedChild.date_of_birth)}
-          childName={selectedChild.name}
-          onClose={() => setShowMotivationPopup(false)}
-          onScrollToTracker={scrollToSleepTracker}
-        />
-      )}
     </div>
   )
 }
