@@ -246,8 +246,9 @@ export function useSleepSessions(childId?: string) {
       if (error) throw error
       return data
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save prediction')
-      throw err
+      console.error('Failed to save prediction:', err)
+      // Don't throw error to avoid breaking the UI
+      return null
     }
   }
 

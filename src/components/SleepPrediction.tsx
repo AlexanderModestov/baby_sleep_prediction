@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { SleepSession } from '@/lib/supabase'
+import { useSleepSessions } from '@/hooks/useSupabase'
 import Button from './ui/Button'
 import Card from './ui/Card'
 import SleepPrompts from './SleepPrompts'
+import crypto from 'crypto-js'
 
 interface SleepPrediction {
   nextBedtime: string
@@ -11,6 +13,11 @@ interface SleepPrediction {
   confidence: number
   summary: string
   reasoning: string
+  provider?: string
+  model?: string
+  generationTime?: number
+  sessionCount?: number
+  childAge?: number
 }
 
 interface PredictionText {
@@ -43,6 +50,7 @@ export default function SleepPrediction({
   onScrollToTracker,
   onQuickStart
 }: SleepPredictionProps) {
+  const { savePrediction } = useSleepSessions(childId)
   const [prediction, setPrediction] = useState<SleepPrediction | null>(null)
   const [predictionText, setPredictionText] = useState<PredictionText | null>(null)
   const [realTimeMetrics, setRealTimeMetrics] = useState<{nextBedtime: string, timeUntilBedtime: string, expectedDuration: string} | null>(null)
@@ -53,13 +61,8 @@ export default function SleepPrediction({
   const [isRequestInFlight, setIsRequestInFlight] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
 
-  // Stabilize recentSessions to prevent unnecessary re-renders
-  const sessionsSignature = useMemo(() => 
-    recentSessions.map(s => `${s.id}-${s.start_time}-${s.end_time}`).join(','),
-    [recentSessions]
-  )
-  
-  const stableRecentSessions = useMemo(() => recentSessions, [recentSessions, sessionsSignature])
+  // Stabilize recentSessions to prevent unnecessary re-renders  
+  const stableRecentSessions = useMemo(() => recentSessions, [recentSessions])
 
   // Memoize request parameters to avoid unnecessary re-renders
   const requestParams = useMemo(() => ({
@@ -140,6 +143,34 @@ export default function SleepPrediction({
         confidence: result.confidence,
         expectedDuration: result.expectedDuration
       })
+      
+      // Save prediction to database if childId is provided
+      if (childId && result.sessionCount >= 3) { // Only save AI predictions, not general recommendations
+        try {
+          // Generate hash of input sessions for deduplication
+          const inputHash = crypto.SHA256(JSON.stringify(stableRecentSessions)).toString()
+          
+          await savePrediction(childId, {
+            next_bedtime: result.nextBedtime,
+            time_until_bedtime: result.timeUntilBedtime,
+            expected_duration: result.expectedDuration,
+            confidence: result.confidence,
+            summary: result.summary,
+            reasoning: result.reasoning,
+            llm_provider: result.provider || 'general',
+            model_used: result.model || null,
+            session_count: result.sessionCount || 0,
+            generation_time_ms: result.generationTime || null,
+            child_age_months: result.childAge || childAge,
+            input_sessions_hash: inputHash
+          })
+          
+          console.log('Prediction saved to database successfully')
+        } catch (dbError) {
+          console.error('Failed to save prediction to database:', dbError)
+          // Don't fail the UI if database save fails
+        }
+      }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
         console.log('Request was cancelled')
@@ -151,7 +182,7 @@ export default function SleepPrediction({
       setLoading(false)
       setIsRequestInFlight(false)
     }
-  }, [activeSession, stableRecentSessions, textRequestId, lastRequestId, requestParams, childAge, isRequestInFlight])
+  }, [activeSession, stableRecentSessions, textRequestId, lastRequestId, requestParams, childAge, isRequestInFlight, childId, savePrediction])
 
   useEffect(() => {
     // Debounce the prediction requests to avoid rapid calls

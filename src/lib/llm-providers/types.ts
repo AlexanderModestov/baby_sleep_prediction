@@ -7,6 +7,9 @@ export interface SleepPrediction {
   reasoning: string
   provider?: string
   model?: string
+  generationTime?: number
+  sessionCount?: number
+  childAge?: number
 }
 
 export interface LLMProvider {

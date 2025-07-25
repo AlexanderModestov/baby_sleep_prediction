@@ -28,6 +28,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [startTimeManuallySet, setStartTimeManuallySet] = useState(false)
   const [isUserSelectingStartTime, setIsUserSelectingStartTime] = useState(false)
+  const [isUserSelectingEndTime, setIsUserSelectingEndTime] = useState(false)
   const [validationErrors, setValidationErrors] = useState<{
     endTime?: string
     quality?: string
@@ -39,13 +40,29 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
     console.log('Current validation errors:', validationErrors)
   }, [validationErrors])
 
+  // Helper function to convert Date to datetime-local format
+  const formatForDatetimeLocal = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  }
+
+  // Helper function to parse datetime-local value to Date object
+  const parseDatetimeLocal = (datetimeLocal: string): Date => {
+    // datetime-local format: "YYYY-MM-DDTHH:mm"
+    // This creates a Date in the user's local timezone
+    return new Date(datetimeLocal)
+  }
+
   useEffect(() => {
     // Initialize current time on client
     const now = new Date()
     setCurrentTime(now)
-    // Set start time to local timezone for datetime-local input
-    const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
-    setStartTime(localDateTime)
+    // Set start time to current local time
+    setStartTime(formatForDatetimeLocal(now))
   }, [])
 
   useEffect(() => {
@@ -54,11 +71,14 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
         const now = new Date()
         setCurrentTime(now)
         
-        const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+        const localDateTime = formatForDatetimeLocal(now)
         
         if (activeSession) {
-          // Update end time to current time continuously when there's an active session
-          setEndTime(localDateTime)
+          // Only update end time if user hasn't manually set it
+          // This prevents race conditions during validation
+          if (!isUserSelectingEndTime) {
+            setEndTime(localDateTime)
+          }
         } else if (!startTimeManuallySet && !isUserSelectingStartTime) {
           // Update start time to current time continuously when there's no active session
           // and user hasn't manually set the start time and user is not currently selecting
@@ -68,7 +88,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
       
       return () => clearInterval(timer)
     }
-  }, [activeSession, currentTime, startTimeManuallySet, isUserSelectingStartTime])
+  }, [activeSession, currentTime, startTimeManuallySet, isUserSelectingStartTime, isUserSelectingEndTime])
 
   const handleStartSleep = async () => {
     // Clear previous errors
@@ -92,8 +112,8 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
     // Remove future time validation for start time to allow any time selection
     
     if (!stillSleeping && endTime) {
-      const endTimeDate = new Date(endTime)
-      const startTimeDate = new Date(startTime)
+      const endTimeDate = parseDatetimeLocal(endTime)
+      const startTimeDate = parseDatetimeLocal(startTime)
       
       const now = new Date()
       if (endTimeDate > now) {
@@ -119,11 +139,11 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
 
     try {
       // Convert local datetime to UTC for server
-      const sleepStartTime = startTime ? new Date(startTime).toISOString() : new Date().toISOString()
-      const sleepEndTime = stillSleeping ? null : (endTime ? new Date(endTime).toISOString() : null)
+      const sleepStartTime = startTime ? parseDatetimeLocal(startTime).toISOString() : new Date().toISOString()
+      const sleepEndTime = stillSleeping ? null : (endTime ? parseDatetimeLocal(endTime).toISOString() : null)
       
-      // Calculate duration using the original local datetime strings to avoid timezone conversion issues
-      const durationMinutes = sleepEndTime ? Math.floor((new Date(endTime).getTime() - new Date(startTime).getTime()) / (1000 * 60)) : null
+      // Calculate duration using consistent datetime parsing
+      const durationMinutes = sleepEndTime ? Math.floor((parseDatetimeLocal(endTime).getTime() - parseDatetimeLocal(startTime).getTime()) / (1000 * 60)) : null
       
       await startSleepSession({
         child_id: childId,
@@ -188,8 +208,8 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
 
     // Validate end time is not in the future
     const now = new Date()
-    const endTimeDate = new Date(endTime)
-    const startTimeDate = new Date(activeSession.start_time)
+    const endTimeDate = parseDatetimeLocal(endTime)
+    const startTimeDate = new Date(activeSession.start_time) // This is already in UTC from database
     
     if (endTimeDate > now) {
       setValidationErrors({ endTime: 'End time cannot be in the future' })
@@ -208,7 +228,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
 
     try {
       // Convert local datetime to UTC for server
-      const sleepEndTime = endTime ? new Date(endTime).toISOString() : new Date().toISOString()
+      const sleepEndTime = endTime ? parseDatetimeLocal(endTime).toISOString() : new Date().toISOString()
       
       await endSleepSession(activeSession.id, sleepEndTime, quality || undefined)
       
@@ -299,7 +319,9 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
                     label="End Time"
                     type="datetime-local"
                     value={endTime}
-                    max={currentTime ? new Date(currentTime.getTime() - currentTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : undefined}
+                    max={currentTime ? formatForDatetimeLocal(currentTime) : undefined}
+                    onFocus={() => setIsUserSelectingEndTime(true)}
+                    onBlur={() => setIsUserSelectingEndTime(false)}
                     onChange={(e) => {
                       setEndTime(e.target.value)
                       clearError('endTime')
@@ -383,7 +405,9 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
                     label="End Time"
                     type="datetime-local"
                     value={endTime}
-                    max={currentTime ? new Date(currentTime.getTime() - currentTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : undefined}
+                    max={currentTime ? formatForDatetimeLocal(currentTime) : undefined}
+                    onFocus={() => setIsUserSelectingEndTime(true)}
+                    onBlur={() => setIsUserSelectingEndTime(false)}
                     onChange={(e) => {
                       setEndTime(e.target.value)
                       clearError('endTime')
