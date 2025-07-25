@@ -4,7 +4,6 @@ import { useSleepSessions } from '@/hooks/useSupabase'
 import Button from './ui/Button'
 import Card from './ui/Card'
 import SleepPrompts from './SleepPrompts'
-import crypto from 'crypto-js'
 
 interface SleepPrediction {
   nextBedtime: string
@@ -51,6 +50,14 @@ export default function SleepPrediction({
   onQuickStart
 }: SleepPredictionProps) {
   const { savePrediction } = useSleepSessions(childId)
+
+  // Helper function to hash data using native Web Crypto API
+  const hashData = async (data: string): Promise<string> => {
+    const encoder = new TextEncoder()
+    const buffer = await crypto.subtle.digest('SHA-256', encoder.encode(data))
+    return Array.from(new Uint8Array(buffer))
+      .map(b => b.toString(16).padStart(2, '0')).join('')
+  }
   const [prediction, setPrediction] = useState<SleepPrediction | null>(null)
   const [predictionText, setPredictionText] = useState<PredictionText | null>(null)
   const [realTimeMetrics, setRealTimeMetrics] = useState<{nextBedtime: string, timeUntilBedtime: string, expectedDuration: string} | null>(null)
@@ -148,7 +155,7 @@ export default function SleepPrediction({
       if (childId && result.sessionCount >= 3) { // Only save AI predictions, not general recommendations
         try {
           // Generate hash of input sessions for deduplication
-          const inputHash = crypto.SHA256(JSON.stringify(stableRecentSessions)).toString()
+          const inputHash = await hashData(JSON.stringify(stableRecentSessions))
           
           await savePrediction(childId, {
             next_bedtime: result.nextBedtime,
