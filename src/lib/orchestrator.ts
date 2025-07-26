@@ -154,19 +154,22 @@ Based on this specific baby's profile and their sleep patterns, and considering 
 1. Predict the baby's next likely bedtime.
 2. Calculate the time from the "Current date and time for context" until this predicted bedtime.
 
+First, analyze if this sleep history looks realistic and complete for a baby of this age:
+- Are sleep durations reasonable for the age group?
+- Are wake windows appropriate?
+- Are there obvious gaps or missing sessions?
+- Do sleep patterns make biological sense?
+
 Please provide your response as a JSON object with the following exact structure:
 {
+  "isHistoryRealistic": true/false,
   "nextBedtime": "YYYY-MM-DDTHH:MM:SS.SSSZ",
   "expectedDuration": "X hours Y minutes",
   "reasoning": "Brief 2-3 sentence explanation"
 }
 
-Example of a valid response:
-{
-  "nextBedtime": "2024-01-15T20:45:00.000Z",
-  "expectedDuration": "1 hour 30 minutes",
-  "reasoning": "Based on Emma's recent sleep patterns, she typically naps every 2-3 hours. Her last sleep ended 2 hours ago, indicating she should be ready for her next nap soon."
-}
+If isHistoryRealistic is true, provide a normal prediction based on the sleep patterns.
+If isHistoryRealistic is false, just set the flag to false - the system will use default recommendations.
 
 If there is insufficient data to make a confident prediction (e.g., very few entries or highly erratic patterns), please return a JSON object with an error field:
 {
@@ -233,10 +236,6 @@ export async function predictNextSleep(
       model: llmConfig.model
     }
     
-    console.log('=== PREDICTION RESULT ===')
-    console.log(JSON.stringify(enhancedPrediction, null, 2))
-    console.log('=== END PREDICTION RESULT ===')
-    
     return enhancedPrediction
   } catch (error) {
     console.error('Error predicting sleep:', error)
@@ -245,6 +244,17 @@ export async function predictNextSleep(
     if (error instanceof Error && error.message.includes('Insufficient data')) {
       console.log('Using general recommendation due to insufficient data')
       return getGeneralRecommendation(childAge, sleepHistory)
+    }
+    
+    // Check if LLM flagged history as unrealistic
+    if (error instanceof Error && error.message === 'UNREALISTIC_HISTORY') {
+      console.log('Using general recommendation due to unrealistic sleep history')
+      const generalRec = getGeneralRecommendation(childAge, sleepHistory)
+      return {
+        ...generalRec,
+        summary: `⚠️ Sleep history appears incomplete or unrealistic. Please ensure all sleep sessions are accurately recorded for better predictions.`,
+        reasoning: `The recorded sleep history doesn't follow typical patterns for this age group. This may be due to missing sessions, incorrect times, or unusual circumstances. For accurate AI predictions, please review and update your sleep tracking data.`
+      }
     }
     
     // Re-throw other errors to be handled by caller

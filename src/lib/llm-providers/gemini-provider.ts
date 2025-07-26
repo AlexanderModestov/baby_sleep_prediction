@@ -53,6 +53,11 @@ export class GeminiProvider implements LLMProvider {
           throw new Error(prediction.error)
         }
         
+        // Check if LLM flagged history as unrealistic
+        if (prediction.isHistoryRealistic === false) {
+          throw new Error('UNREALISTIC_HISTORY')
+        }
+        
         // Calculate missing fields that UI expects
         const now = new Date()
         const nextBedtime = new Date(prediction.nextBedtime)
