@@ -43,7 +43,28 @@ export class OpenAIProvider implements LLMProvider {
         if (prediction.error) {
           throw new Error(prediction.error)
         }
-        return prediction as SleepPrediction
+        
+        // Calculate missing fields that UI expects
+        const now = new Date()
+        const nextBedtime = new Date(prediction.nextBedtime)
+        const timeDiff = nextBedtime.getTime() - now.getTime()
+        const minutesUntil = Math.max(0, Math.round(timeDiff / (1000 * 60)))
+        
+        const formatTime = (minutes: number): string => {
+          const hours = Math.floor(minutes / 60)
+          const mins = minutes % 60
+          if (hours === 0) return `${mins} minutes`
+          if (mins === 0) return `${hours} hour${hours > 1 ? 's' : ''}`
+          return `${hours} hour${hours > 1 ? 's' : ''} ${mins} minutes`
+        }
+        
+        // Add calculated fields
+        return {
+          ...prediction,
+          timeUntilBedtime: formatTime(minutesUntil),
+          summary: prediction.reasoning, // Use reasoning as summary
+          confidence: 0.8 // Keep for database storage
+        } as SleepPrediction
       }
 
       throw new Error('Could not parse JSON from OpenAI response')

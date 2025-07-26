@@ -156,14 +156,16 @@ Based on this specific baby's profile and their sleep patterns, and considering 
 
 Please provide your response as a JSON object with the following exact structure:
 {
-  "predictedBedtime": "HH:MM AM/PM",
-  "timeUntilBedtime": "X hours Y minutes"
+  "nextBedtime": "YYYY-MM-DDTHH:MM:SS.SSSZ",
+  "expectedDuration": "X hours Y minutes",
+  "reasoning": "Brief 2-3 sentence explanation"
 }
 
 Example of a valid response:
 {
-  "predictedBedtime": "8:45 PM",
-  "timeUntilBedtime": "2 hours 15 minutes"
+  "nextBedtime": "2024-01-15T20:45:00.000Z",
+  "expectedDuration": "1 hour 30 minutes",
+  "reasoning": "Based on Emma's recent sleep patterns, she typically naps every 2-3 hours. Her last sleep ended 2 hours ago, indicating she should be ready for her next nap soon."
 }
 
 If there is insufficient data to make a confident prediction (e.g., very few entries or highly erratic patterns), please return a JSON object with an error field:
