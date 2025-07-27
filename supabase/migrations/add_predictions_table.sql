@@ -39,4 +39,4 @@ CREATE INDEX IF NOT EXISTS idx_predictions_input_hash ON predictions(input_sessi
 CREATE TRIGGER update_predictions_updated_at
     BEFORE UPDATE ON predictions
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+    

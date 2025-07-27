@@ -1,17 +1,8 @@
 import { LLMConfig, LLMProviderType } from './types'
 
 export function getLLMConfig(): LLMConfig {
-  // Debug environment variables
-  console.log('=== ENVIRONMENT VARIABLES DEBUG ===')
-  console.log('LLM_PROVIDER:', process.env.LLM_PROVIDER)
-  console.log('OPENAI_API_KEY present:', !!process.env.OPENAI_API_KEY)
-  console.log('GOOGLE_API_KEY present:', !!process.env.GOOGLE_API_KEY)
-  console.log('CLAUDE_API_KEY present:', !!process.env.CLAUDE_API_KEY)
-  console.log('=== END ENV DEBUG ===')
-  
   // Default to OpenAI, but allow override via environment variable
   const provider = (process.env.LLM_PROVIDER as LLMProviderType) || 'openai'
-  console.log('Selected provider:', provider)
   
   let apiKey: string
   let model: string
@@ -28,8 +19,6 @@ export function getLLMConfig(): LLMConfig {
   } else {
     throw new Error(`Unsupported LLM provider: ${provider}`)
   }
-  
-  console.log('Final config:', { provider, model, apiKeyPresent: !!apiKey })
   
   if (!apiKey) {
     throw new Error(`API key not found for provider: ${provider}`)

@@ -35,10 +35,6 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
     startTime?: string
   }>({})
 
-  // Debug log to see validation errors
-  useEffect(() => {
-    console.log('Current validation errors:', validationErrors)
-  }, [validationErrors])
 
   // Helper function to convert Date to datetime-local format
   const formatForDatetimeLocal = (date: Date): string => {
@@ -109,7 +105,14 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
       errors.quality = 'Please select sleep quality'
     }
 
-    // Remove future time validation for start time to allow any time selection
+    // Validate start time is not in the future
+    if (startTime) {
+      const startTimeDate = parseDatetimeLocal(startTime)
+      const now = new Date()
+      if (startTimeDate > now) {
+        errors.startTime = 'Start time cannot be in the future'
+      }
+    }
     
     if (!stillSleeping && endTime) {
       const endTimeDate = parseDatetimeLocal(endTime)
@@ -125,7 +128,6 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
     
     // If there are errors, show them and return
     if (Object.keys(errors).length > 0) {
-      console.log('Validation errors:', errors) // Debug log
       setValidationErrors(errors)
       hapticFeedback()
       // Also show an alert for immediate feedback
@@ -181,14 +183,10 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
   }
 
   const handleEndSleep = async () => {
-    console.log('handleEndSleep called') // Debug
-    console.log('Current quality value:', quality) // Debug
-    
     if (!activeSession) return
 
     // Simple validation check
     if (!quality) {
-      console.log('Quality is missing, showing error') // Debug
       setValidationErrors({ quality: 'Please select sleep quality' })
       showAlert('Please select sleep quality before ending the session.')
       hapticFeedback()
@@ -196,7 +194,6 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
     }
 
     if (!endTime) {
-      console.log('End time is missing, showing error') // Debug
       setValidationErrors({ endTime: 'Please select an end time' })
       showAlert('Please select an end time for the sleep session.')
       hapticFeedback()
@@ -371,6 +368,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
                 label={stillSleeping ? "Start Sleep Session" : "Start Time"}
                 type="datetime-local"
                 value={startTime}
+                max={currentTime ? formatForDatetimeLocal(currentTime) : undefined}
                 onFocus={() => {
                   setIsUserSelectingStartTime(true)
                   setStartTimeManuallySet(true)

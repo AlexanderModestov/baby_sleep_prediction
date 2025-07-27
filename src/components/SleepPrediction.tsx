@@ -90,26 +90,14 @@ export default function SleepPrediction({
   const shouldRefresh = useMemo(() => refreshTrigger, [refreshTrigger])
 
   const loadPrediction = useCallback(async () => {
-    console.log('SleepPrediction useEffect triggered:', {
-      activeSession: !!activeSession,
-      recentSessionsCount: stableRecentSessions.length,
-      childAge,
-      textRequestId,
-      isRequestInFlight
-    })
-    
     if (activeSession || stableRecentSessions.length === 0) {
-      console.log('Skipping prediction: activeSession or no recent sessions')
       return
     }
 
     // Check if this is a duplicate request or request already in flight
     if (lastRequestId === textRequestId || isRequestInFlight) {
-      console.log('Skipping duplicate/in-flight request:', textRequestId)
       return
     }
-
-    console.log('Loading new prediction...')
     setLastRequestId(textRequestId)
     setLoading(true)
     setError(null)
@@ -141,7 +129,6 @@ export default function SleepPrediction({
       }
       
       const result = await response.json()
-      console.log('Prediction loaded successfully:', result)
       setPrediction(result)
       // Store prediction text separately
       setPredictionText({
@@ -172,7 +159,6 @@ export default function SleepPrediction({
             input_sessions_hash: inputHash
           })
           
-          console.log('Prediction saved to database successfully')
         } catch (dbError) {
           console.error('Failed to save prediction to database:', dbError)
           // Don't fail the UI if database save fails
@@ -180,7 +166,6 @@ export default function SleepPrediction({
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
-        console.log('Request was cancelled')
         return
       }
       setError('Prediction temporarily unavailable due to high demand. Please try again in a few minutes.')
@@ -200,7 +185,6 @@ export default function SleepPrediction({
   // Handle refresh trigger separately to clear cached data without triggering new request
   useEffect(() => {
     if (shouldRefresh && shouldRefresh > 0) {
-      console.log('Handling refresh trigger, clearing cached prediction')
       setPrediction(null)
       setPredictionText(null)
       setLastRequestId(null)

@@ -43,3 +43,48 @@ export interface SleepSession {
   created_at: string
   updated_at: string
 }
+
+export interface SleepContext {
+  id: string
+  child_id: string
+  context_hash: string
+  sessions_count: number
+  session_ids: string // JSON string in simple schema
+  last_sleep_session_id: string | null
+  child_age_months: number
+  total_sleep_hours: number | null
+  average_session_duration: number | null
+  created_at: string
+}
+
+export interface Prediction {
+  id: string
+  child_id: string
+  sleep_context_id: string
+  next_bedtime: string
+  time_until_bedtime: string
+  expected_duration: string
+  confidence: number
+  summary: string
+  reasoning: string
+  llm_provider: string
+  model_used: string | null
+  generation_time_ms: number | null
+  is_active: boolean
+  used_count: number
+  last_served_at: string | null
+  user_feedback: 'helpful' | 'not_helpful' | 'inaccurate' | null
+  feedback_notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PredictionUsage {
+  id: string
+  prediction_id: string
+  child_id: string
+  served_at: string
+  was_from_cache: boolean
+  user_action: string | null
+  created_at: string
+}

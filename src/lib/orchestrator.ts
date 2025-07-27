@@ -185,46 +185,41 @@ export async function predictNextSleep(
   childName: string = 'Baby'
 ): Promise<SleepPrediction> {
   try {
-    console.log('=== ORCHESTRATOR SLEEP PREDICTION ===')
-    console.log(`Child Age: ${childAge} months`)
-    console.log(`Child Gender: ${childGender}`)
-    console.log(`Sleep History Count: ${sleepHistory.length}`)
-    console.log('=== END ORCHESTRATOR INFO ===')
 
     // Check if there's insufficient sleep history for personalized predictions
     if (sleepHistory.length < 3) {
-      console.log('Using general recommendation - insufficient sleep history')
       return getGeneralRecommendation(childAge, sleepHistory)
     }
 
     // Check if user hasn't recorded sleep for 5+ hours since last wake up
-    const lastSession = sleepHistory[0]
+    // Find the most recent completed session (not just sleepHistory[0])
+    const completedSessions = sleepHistory.filter(s => s.end_time)
+    const lastSession = completedSessions.length > 0 
+      ? completedSessions.reduce((latest, current) => 
+          new Date(current.end_time!).getTime() > new Date(latest.end_time!).getTime() 
+            ? current 
+            : latest
+        )
+      : null
+    
     if (lastSession && lastSession.end_time) {
       const lastWakeTime = new Date(lastSession.end_time)
       const now = new Date()
       const hoursSinceLastWake = (now.getTime() - lastWakeTime.getTime()) / (1000 * 60 * 60)
       
       if (hoursSinceLastWake >= 5) {
-        console.log(`Using general recommendation - ${hoursSinceLastWake.toFixed(1)} hours since last sleep session`)
         return getGeneralRecommendationWithGapMessage(childAge, sleepHistory, hoursSinceLastWake)
       }
     }
 
     // Get LLM configuration from environment variables
     const llmConfig = getLLMConfig()
-    console.log(`Using LLM Provider: ${llmConfig.provider} with model: ${llmConfig.model}`)
-    console.log(`API Key present: ${!!llmConfig.apiKey}`)
-    console.log(`API Key length: ${llmConfig.apiKey?.length || 0}`)
     
     // Create provider based on config
     const provider = createProvider(llmConfig)
     
     // Create prompt using the template
     const prompt = createPrompt(childAge, sleepHistory, childGender, childName)
-    
-    console.log('=== FINAL PROMPT ===')
-    console.log(prompt)
-    console.log('=== END FINAL PROMPT ===')
     
     // Generate prediction using the selected provider
     const prediction = await provider.generateSleepPrediction(prompt)
@@ -242,13 +237,11 @@ export async function predictNextSleep(
     
     // Check if the error is from insufficient data, use general recommendations
     if (error instanceof Error && error.message.includes('Insufficient data')) {
-      console.log('Using general recommendation due to insufficient data')
       return getGeneralRecommendation(childAge, sleepHistory)
     }
     
     // Check if LLM flagged history as unrealistic
     if (error instanceof Error && error.message === 'UNREALISTIC_HISTORY') {
-      console.log('Using general recommendation due to unrealistic sleep history')
       const generalRec = getGeneralRecommendation(childAge, sleepHistory)
       return {
         ...generalRec,
