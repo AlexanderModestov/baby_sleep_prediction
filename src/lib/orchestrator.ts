@@ -43,7 +43,7 @@ function formatTime(minutes: number): string {
 
 function getGeneralRecommendation(childAge: number, sleepHistory: SleepSession[]): SleepPrediction {
   const recommendations = getAgeBasedRecommendations(childAge)
-  const nowUTC = new Date() // This is already UTC since new Date() returns UTC internally
+  const now = new Date() // Current time in local timezone
   
   // Calculate time since last sleep
   let timeSinceLastSleep = 0
@@ -53,13 +53,13 @@ function getGeneralRecommendation(childAge: number, sleepHistory: SleepSession[]
     const lastSession = sleepHistory[0]
     if (lastSession.end_time) {
       lastSleepEnd = new Date(lastSession.end_time) // Database stores UTC
-      timeSinceLastSleep = Math.floor((nowUTC.getTime() - lastSleepEnd.getTime()) / (1000 * 60))
+      timeSinceLastSleep = Math.floor((now.getTime() - lastSleepEnd.getTime()) / (1000 * 60))
     }
   }
   
   // Calculate recommended next bedtime
   const timeUntilBedtime = Math.max(0, recommendations.wakeWindow - timeSinceLastSleep)
-  const nextBedtime = new Date(nowUTC.getTime() + timeUntilBedtime * 60 * 1000)
+  const nextBedtime = new Date(now.getTime() + timeUntilBedtime * 60 * 1000)
   
   return {
     nextBedtime: nextBedtime.toISOString(),
@@ -73,9 +73,10 @@ function getGeneralRecommendation(childAge: number, sleepHistory: SleepSession[]
   }
 }
 
-function getGeneralRecommendationWithGapMessage(childAge: number, sleepHistory: SleepSession[], hoursSinceLastWake: number): SleepPrediction {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function getGeneralRecommendationWithGapMessage(childAge: number, sleepHistory: SleepSession[], _hoursSinceLastWake: number): SleepPrediction {
   const recommendations = getAgeBasedRecommendations(childAge)
-  const nowUTC = new Date()
+  const now = new Date()
   
   // Calculate time since last sleep
   let timeSinceLastSleep = 0
@@ -85,25 +86,21 @@ function getGeneralRecommendationWithGapMessage(childAge: number, sleepHistory: 
     const lastSession = sleepHistory[0]
     if (lastSession.end_time) {
       lastSleepEnd = new Date(lastSession.end_time)
-      timeSinceLastSleep = Math.floor((nowUTC.getTime() - lastSleepEnd.getTime()) / (1000 * 60))
+      timeSinceLastSleep = Math.floor((now.getTime() - lastSleepEnd.getTime()) / (1000 * 60))
     }
   }
   
   // Calculate recommended next bedtime
   const timeUntilBedtime = Math.max(0, recommendations.wakeWindow - timeSinceLastSleep)
-  const nextBedtime = new Date(nowUTC.getTime() + timeUntilBedtime * 60 * 1000)
-  
-  const hoursText = hoursSinceLastWake >= 24 ? 
-    `${Math.floor(hoursSinceLastWake / 24)} day${Math.floor(hoursSinceLastWake / 24) > 1 ? 's' : ''} and ${Math.floor(hoursSinceLastWake % 24)} hour${Math.floor(hoursSinceLastWake % 24) !== 1 ? 's' : ''}` :
-    `${Math.floor(hoursSinceLastWake)} hour${Math.floor(hoursSinceLastWake) !== 1 ? 's' : ''}`
+  const nextBedtime = new Date(now.getTime() + timeUntilBedtime * 60 * 1000)
   
   return {
     nextBedtime: nextBedtime.toISOString(),
     timeUntilBedtime: formatTime(timeUntilBedtime),
     expectedDuration: formatTime(recommendations.sleepDuration),
     confidence: 0.6, // Lower confidence due to missing data
-    summary: `⚠️ Missing sleep records detected! It's been ${hoursText} since your last recorded sleep. Please add any missed sleep sessions for better predictions.`,
-    reasoning: `We haven't seen any sleep records for ${hoursText}, which suggests some sleep sessions might be missing. For accurate AI predictions, we need complete sleep tracking data. Please:\n\n• Add any sleep sessions you may have missed\n• Record future sleep sessions promptly\n• With consistent tracking, you'll get personalized AI predictions\n\nIn the meantime, here's a general recommendation based on typical patterns for ${recommendations.description}.`,
+    summary: `⚠️ Missing sleep records detected! Please add any missed sleep sessions for better predictions.`,
+    reasoning: `Missing sleep data - using general recommendations for ${recommendations.description}.`,
     provider: 'general',
     model: undefined
   }
@@ -128,11 +125,31 @@ function createPrompt(childAge: number, sleepHistory: SleepSession[], childGende
     const end = session.end_time ? new Date(session.end_time) : null
     const duration = end ? Math.floor((end.getTime() - start.getTime()) / (1000 * 60)) : null
     
-    return `Start: ${start.toISOString()}, End: ${end?.toISOString() || 'ongoing'}, Duration: ${duration ? `${duration} minutes` : 'ongoing'}`
+    // Format times in local timezone for LLM
+    const formatLocalTime = (date: Date) => {
+      return date.toLocaleString('en-CA', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+      }).replace(', ', 'T')
+    }
+    
+    return `Start: ${formatLocalTime(start)}, End: ${end ? formatLocalTime(end) : 'ongoing'}, Duration: ${duration ? `${duration} minutes` : 'ongoing'}`
   }
 
   const formattedEntries = sleepHistory.map(formatSession).join('\n')
-  const currentDate = new Date().toISOString() // UTC time for LLM context
+  // Use local time for current context
+  const currentDate = new Date().toLocaleString('en-CA', { 
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit', 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: false 
+  }).replace(', ', 'T')
   const babyProfile = { name: childName, gender: childGender }
   const babyAge = `${childAge} months`
   
@@ -143,9 +160,9 @@ The parents are tracking sleep for their baby:
 - Gender: ${babyProfile.gender}
 
 The following are recent sleep records for this baby. Each record includes a start time, an end time, and the duration of sleep.
-Times are in YYYY-MM-DDTHH:MM ISO format.
+Times are in the user's local timezone in YYYY-MM-DDTHH:MM format.
 
-Current date and time for context: ${currentDate}
+Current local date and time for context: ${currentDate}
 
 Sleep Records:
 ${formattedEntries}
@@ -163,7 +180,7 @@ First, analyze if this sleep history looks realistic and complete for a baby of 
 Please provide your response as a JSON object with the following exact structure:
 {
   "isHistoryRealistic": true/false,
-  "nextBedtime": "YYYY-MM-DDTHH:MM:SS.SSSZ",
+  "nextBedtime": "YYYY-MM-DDTHH:MM",
   "expectedDuration": "X hours Y minutes",
   "reasoning": "Brief 2-3 sentence explanation"
 }

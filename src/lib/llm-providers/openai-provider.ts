@@ -51,6 +51,7 @@ export class OpenAIProvider implements LLMProvider {
         
         // Calculate missing fields that UI expects
         const now = new Date()
+        // Parse local timezone format from LLM (YYYY-MM-DDTHH:MM) and convert to Date
         const nextBedtime = new Date(prediction.nextBedtime)
         const timeDiff = nextBedtime.getTime() - now.getTime()
         const minutesUntil = Math.max(0, Math.round(timeDiff / (1000 * 60)))
@@ -63,9 +64,10 @@ export class OpenAIProvider implements LLMProvider {
           return `${hours} hour${hours > 1 ? 's' : ''} ${mins} minutes`
         }
         
-        // Add calculated fields
+        // Add calculated fields and convert nextBedtime to ISO format
         return {
           ...prediction,
+          nextBedtime: nextBedtime.toISOString(), // Convert to ISO for consistency
           timeUntilBedtime: formatTime(minutesUntil),
           summary: prediction.reasoning, // Use reasoning as summary
           confidence: 0.8 // Keep for database storage
