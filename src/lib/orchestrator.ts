@@ -179,7 +179,7 @@ Please provide your response as a JSON object with the following exact structure
   "isHistoryRealistic": true/false,
   "nextBedtime": "YYYY-MM-DDTHH:MM",
   "expectedDuration": "X hours Y minutes",
-  "reasoning": "Brief 2-3 sentence explanation"
+  "reasoning": "Brief 2-3 sentence explanation without specific times only the general conclusions how we predict the next sleep time based on the sleep history"
 }
 
 If isHistoryRealistic is true, provide a normal prediction based on the sleep patterns.
