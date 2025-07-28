@@ -240,14 +240,9 @@ export default function SleepPrediction({
       const timeDiff = llmBedtime.getTime() - nowUTC.getTime()
       const minutesUntil = Math.round(timeDiff / (1000 * 60))
       
-      // If LLM prediction is in the past, calculate next occurrence
-      let adjustedBedtime = llmBedtime
-      if (minutesUntil < 0) {
-        // Add 24 hours to get next day's bedtime
-        adjustedBedtime = new Date(llmBedtime.getTime() + 24 * 60 * 60 * 1000)
-      }
-      
-      const adjustedMinutesUntil = Math.max(0, Math.round((adjustedBedtime.getTime() - nowUTC.getTime()) / (1000 * 60)))
+      // If LLM prediction is in the past, show it's time for bed (0 minutes)
+      const adjustedMinutesUntil = Math.max(0, minutesUntil)
+      const adjustedBedtime = llmBedtime
       
       const formatTime = (minutes: number): string => {
         const hours = Math.floor(minutes / 60)
