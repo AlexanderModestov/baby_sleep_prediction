@@ -168,7 +168,7 @@ Sleep Records:
 ${formattedEntries}
 
 Based on this specific baby's profile and their sleep patterns, and considering typical infant sleep physiology for a baby of this age and gender:
-predict the baby's next likely bedtime.
+predict the baby's next likely bedtime or nap time.
 
 First, analyze if this sleep history looks realistic and complete for a baby of this age:
 - Are sleep durations reasonable for the age group?
