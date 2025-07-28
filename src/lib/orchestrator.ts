@@ -162,8 +162,6 @@ The parents are tracking sleep for their baby:
 The following are recent sleep records for this baby. Each record includes a start time, an end time, and the duration of sleep.
 Times are in YYYY-MM-DDTHH:MM format.
 
-Date and time for context: ${currentDate}
-
 Sleep Records:
 ${formattedEntries}
 
