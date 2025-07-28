@@ -90,6 +90,12 @@ export default function SleepPrediction({
   const shouldRefresh = useMemo(() => refreshTrigger, [refreshTrigger])
 
   const loadPrediction = useCallback(async () => {
+    // Validate required data
+    if (!childAge || childAge <= 0) {
+      console.log('Skipping prediction: invalid child age', childAge)
+      return
+    }
+    
     if (activeSession || stableRecentSessions.length === 0) {
       return
     }
@@ -112,15 +118,29 @@ export default function SleepPrediction({
     abortControllerRef.current = new AbortController()
 
     try {
+      const requestBody = {
+        ...requestParams,
+        childId: childId
+      }
+      
+      // Validate request body
+      if (!requestBody.childAge || !requestBody.sleepHistory) {
+        throw new Error('Missing required request data')
+      }
+      
+      console.log('=== FRONTEND REQUEST DEBUG ===')
+      console.log('Request body:', JSON.stringify(requestBody, null, 2))
+      console.log('Request params:', requestParams)
+      console.log('Child ID:', childId)
+      console.log('Sleep history length:', requestBody.sleepHistory?.length || 0)
+      console.log('=== END FRONTEND REQUEST DEBUG ===')
+      
       const response = await fetch('/api/predict-sleep', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...requestParams,
-          childId: childId
-        }),
+        body: JSON.stringify(requestBody),
         signal: abortControllerRef.current.signal
       })
       
@@ -129,6 +149,20 @@ export default function SleepPrediction({
       }
       
       const result = await response.json()
+      
+      console.log('=== PREDICTION UI METRICS ===')
+      console.log('Next Bedtime (from prediction):', new Date(result.nextBedtime).toLocaleTimeString(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      }))
+      console.log('Time Until Bedtime (from prediction):', result.timeUntilBedtime)
+      console.log('Expected Duration (from prediction):', result.expectedDuration)
+      console.log('Summary (displayed):', result.summary)
+      console.log('Provider:', result.provider)
+      console.log('From Cache:', result.fromCache || false)
+      console.log('=== END PREDICTION UI METRICS ===')
+      
       setPrediction(result)
       // Store prediction text separately
       setPredictionText({
@@ -191,26 +225,70 @@ export default function SleepPrediction({
     }
   }, [shouldRefresh])
 
-  // Calculate real-time metrics based on current time and last prediction
+  // Adjust LLM prediction based on current time
   const calculateRealTimeMetrics = useCallback(() => {
     if (stableRecentSessions.length === 0) return null
     
-    // Get age-based recommendations for real-time calculation
-    const getAgeBasedRecommendations = (ageInMonths: number) => {
-      if (ageInMonths <= 3) return { wakeWindow: 45, sleepDuration: 120 } // newborn
-      if (ageInMonths <= 6) return { wakeWindow: 90, sleepDuration: 90 } // infant
-      if (ageInMonths <= 12) return { wakeWindow: 120, sleepDuration: 90 } // older infant
-      if (ageInMonths <= 24) return { wakeWindow: 180, sleepDuration: 120 } // toddler
-      return { wakeWindow: 240, sleepDuration: 90 } // young child
-    }
-    
-    const recommendations = getAgeBasedRecommendations(childAge)
-    const { wakeWindow, sleepDuration } = recommendations
     const nowUTC = new Date()
     const lastSession = stableRecentSessions[0]
     
     if (!lastSession.end_time) return null
     
+    // If we have an LLM prediction, use it as base and adjust for current time
+    if (prediction?.nextBedtime) {
+      const llmBedtime = new Date(prediction.nextBedtime)
+      const timeDiff = llmBedtime.getTime() - nowUTC.getTime()
+      const minutesUntil = Math.round(timeDiff / (1000 * 60))
+      
+      // If LLM prediction is in the past, calculate next occurrence
+      let adjustedBedtime = llmBedtime
+      if (minutesUntil < 0) {
+        // Add 24 hours to get next day's bedtime
+        adjustedBedtime = new Date(llmBedtime.getTime() + 24 * 60 * 60 * 1000)
+      }
+      
+      const adjustedMinutesUntil = Math.max(0, Math.round((adjustedBedtime.getTime() - nowUTC.getTime()) / (1000 * 60)))
+      
+      const formatTime = (minutes: number): string => {
+        const hours = Math.floor(minutes / 60)
+        const mins = minutes % 60
+        
+        if (hours === 0) return `${mins} minutes`
+        if (mins === 0) return `${hours} hours`
+        return `${hours} hours ${mins} minutes`
+      }
+      
+      const metrics = {
+        nextBedtime: adjustedBedtime.toLocaleTimeString(undefined, {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        }),
+        timeUntilBedtime: formatTime(adjustedMinutesUntil),
+        expectedDuration: prediction.expectedDuration || 'Unknown'
+      }
+      
+      console.log('=== ADJUSTED LLM PREDICTION ===')
+      console.log('Original LLM bedtime:', llmBedtime.toLocaleTimeString())
+      console.log('Adjusted bedtime (displayed):', metrics.nextBedtime)
+      console.log('Time until (displayed):', metrics.timeUntilBedtime)
+      console.log('Expected duration:', metrics.expectedDuration)
+      console.log('=== END ADJUSTED LLM PREDICTION ===')
+      
+      return metrics
+    }
+    
+    // Fallback to age-based calculation if no LLM prediction
+    const getAgeBasedRecommendations = (ageInMonths: number) => {
+      if (ageInMonths <= 3) return { wakeWindow: 45, sleepDuration: 120 }
+      if (ageInMonths <= 6) return { wakeWindow: 90, sleepDuration: 90 }
+      if (ageInMonths <= 12) return { wakeWindow: 120, sleepDuration: 90 }
+      if (ageInMonths <= 24) return { wakeWindow: 180, sleepDuration: 120 }
+      return { wakeWindow: 240, sleepDuration: 90 }
+    }
+    
+    const recommendations = getAgeBasedRecommendations(childAge)
+    const { wakeWindow, sleepDuration } = recommendations
     const lastSleepEnd = new Date(lastSession.end_time)
     const timeSinceLastSleep = Math.floor((nowUTC.getTime() - lastSleepEnd.getTime()) / (1000 * 60))
     const timeUntilBedtime = Math.max(0, wakeWindow - timeSinceLastSleep)
@@ -234,7 +312,7 @@ export default function SleepPrediction({
       timeUntilBedtime: formatTime(timeUntilBedtime),
       expectedDuration: formatTime(sleepDuration)
     }
-  }, [stableRecentSessions, childAge])
+  }, [stableRecentSessions, childAge, prediction])
   
   // Update current time and real-time metrics every minute
   useEffect(() => {
@@ -267,8 +345,14 @@ export default function SleepPrediction({
     const hours = Math.floor(diffMinutes / 60)
     const minutes = diffMinutes % 60
     
-    if (hours === 0) return `${minutes}m ago`
-    return `${hours}h ${minutes}m ago`
+    const timeAwakeDisplay = hours === 0 ? `${minutes}m ago` : `${hours}h ${minutes}m ago`
+    
+    console.log('=== TIME AWAKE UI METRIC ===')
+    console.log('Time Awake (displayed):', timeAwakeDisplay)
+    console.log('Total minutes awake:', diffMinutes)
+    console.log('=== END TIME AWAKE UI METRIC ===')
+    
+    return timeAwakeDisplay
   }, [stableRecentSessions])
 
   const timeSinceLastSleep = getTimeSinceLastSleep()

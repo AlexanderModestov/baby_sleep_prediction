@@ -36,6 +36,10 @@ export class OpenAIProvider implements LLMProvider {
       }
 
       // Extract JSON from response
+      console.log('=== RAW OPENAI RESPONSE ===')
+      console.log(content)
+      console.log('=== END RAW OPENAI RESPONSE ===')
+      
       const jsonMatch = content.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         const prediction = JSON.parse(jsonMatch[0])

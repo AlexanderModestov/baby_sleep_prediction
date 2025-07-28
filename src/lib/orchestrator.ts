@@ -160,16 +160,15 @@ The parents are tracking sleep for their baby:
 - Gender: ${babyProfile.gender}
 
 The following are recent sleep records for this baby. Each record includes a start time, an end time, and the duration of sleep.
-Times are in the user's local timezone in YYYY-MM-DDTHH:MM format.
+Times are in YYYY-MM-DDTHH:MM format.
 
-Current local date and time for context: ${currentDate}
+Date and time for context: ${currentDate}
 
 Sleep Records:
 ${formattedEntries}
 
 Based on this specific baby's profile and their sleep patterns, and considering typical infant sleep physiology for a baby of this age and gender:
-1. Predict the baby's next likely bedtime.
-2. Calculate the time from the "Current date and time for context" until this predicted bedtime.
+predict the baby's next likely bedtime.
 
 First, analyze if this sleep history looks realistic and complete for a baby of this age:
 - Are sleep durations reasonable for the age group?
@@ -238,8 +237,16 @@ export async function predictNextSleep(
     // Create prompt using the template
     const prompt = createPrompt(childAge, sleepHistory, childGender, childName)
     
+    console.log('=== LLM PROMPT ===')
+    console.log(prompt)
+    console.log('=== END LLM PROMPT ===')
+    
     // Generate prediction using the selected provider
     const prediction = await provider.generateSleepPrediction(prompt)
+    
+    console.log('=== LLM RESPONSE ===')
+    console.log(JSON.stringify(prediction, null, 2))
+    console.log('=== END LLM RESPONSE ===')
     
     // Add provider and model info to the prediction
     const enhancedPrediction = {

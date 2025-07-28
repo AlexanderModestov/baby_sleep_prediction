@@ -5,7 +5,32 @@ import { predictionCacheService } from '@/lib/prediction-cache'
 
 export async function POST(request: NextRequest) {
   try {
-    const { childId, childAge, childGender, sleepHistory, childName } = await request.json()
+    // Log request details for debugging
+    console.log('=== API REQUEST DEBUG ===')
+    console.log('Request method:', request.method)
+    console.log('Request headers:', Object.fromEntries(request.headers.entries()))
+    console.log('Request URL:', request.url)
+    
+    // Check if request has body
+    const body = await request.text()
+    console.log('Request body length:', body.length)
+    console.log('Request body (first 200 chars):', body.substring(0, 200))
+    console.log('=== END API REQUEST DEBUG ===')
+    
+    if (!body || body.length === 0) {
+      throw new Error('Empty request body')
+    }
+    
+    let parsedBody
+    try {
+      parsedBody = JSON.parse(body)
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError)
+      console.error('Body that failed to parse:', body)
+      throw new Error(`Invalid JSON in request body: ${parseError}`)
+    }
+    
+    const { childId, childAge, childGender, sleepHistory, childName } = parsedBody
 
 
     // Check database cache for LLM predictions only (3+ sessions)

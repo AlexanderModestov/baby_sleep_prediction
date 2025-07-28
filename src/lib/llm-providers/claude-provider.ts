@@ -45,6 +45,10 @@ export class ClaudeProvider implements LLMProvider {
       const content = data.content[0].text
 
       // Extract JSON from response
+      console.log('=== RAW CLAUDE RESPONSE ===')
+      console.log(content)
+      console.log('=== END RAW CLAUDE RESPONSE ===')
+      
       const jsonMatch = content.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         const prediction = JSON.parse(jsonMatch[0])

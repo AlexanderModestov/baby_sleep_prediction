@@ -45,6 +45,10 @@ export class GeminiProvider implements LLMProvider {
       const text = response.text()
 
       // Extract JSON from response
+      console.log('=== RAW GEMINI RESPONSE ===')
+      console.log(text)
+      console.log('=== END RAW GEMINI RESPONSE ===')
+      
       const jsonMatch = text.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         const prediction = JSON.parse(jsonMatch[0])
