@@ -201,32 +201,30 @@ export async function predictNextSleep(
   childName: string = 'Baby'
 ): Promise<SleepPrediction> {
   try {
+    console.log('=== SLEEP RECORDS DEBUG ===')
+    console.log('Total sleep records received:', sleepHistory.length)
+    console.log('Child age:', childAge, 'months')
+    console.log('Child name:', childName)
+    console.log('Child gender:', childGender)
+    console.log('Sleep history details:')
+    sleepHistory.forEach((session, index) => {
+      console.log(`  Record ${index + 1}:`, {
+        start: session.start_time,
+        end: session.end_time,
+        duration: session.end_time ? 
+          Math.floor((new Date(session.end_time).getTime() - new Date(session.start_time).getTime()) / (1000 * 60)) + ' minutes' : 
+          'ongoing'
+      })
+    })
+    console.log('Will use LLM?', sleepHistory.length >= 3 ? 'YES' : 'NO (using general recommendations)')
+    console.log('=== END SLEEP RECORDS DEBUG ===')
 
     // Check if there's insufficient sleep history for personalized predictions
     if (sleepHistory.length < 3) {
       return getGeneralRecommendation(childAge, sleepHistory)
     }
 
-    // Check if user hasn't recorded sleep for 5+ hours since last wake up
-    // Find the most recent completed session (not just sleepHistory[0])
-    const completedSessions = sleepHistory.filter(s => s.end_time)
-    const lastSession = completedSessions.length > 0 
-      ? completedSessions.reduce((latest, current) => 
-          new Date(current.end_time!).getTime() > new Date(latest.end_time!).getTime() 
-            ? current 
-            : latest
-        )
-      : null
-    
-    if (lastSession && lastSession.end_time) {
-      const lastWakeTime = new Date(lastSession.end_time)
-      const now = new Date()
-      const hoursSinceLastWake = (now.getTime() - lastWakeTime.getTime()) / (1000 * 60 * 60)
-      
-      if (hoursSinceLastWake >= 5) {
-        return getGeneralRecommendationWithGapMessage(childAge, sleepHistory, hoursSinceLastWake)
-      }
-    }
+    // Let LLM handle gap detection and missing sessions
 
     // Get LLM configuration from environment variables
     const llmConfig = getLLMConfig()
