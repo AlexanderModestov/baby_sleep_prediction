@@ -5,11 +5,22 @@ export class ClaudeProvider implements LLMProvider {
   private model: string
 
   constructor(apiKey: string, model: string) {
+    console.log('=== CLAUDE PROVIDER INIT ===')
+    console.log('API key length:', apiKey.length)
+    console.log('API key prefix:', apiKey.substring(0, 10) + '...')
+    console.log('Model:', model)
+    console.log('=== END CLAUDE PROVIDER INIT ===')
+    
     this.apiKey = apiKey
     this.model = model
   }
 
   async generateSleepPrediction(prompt: string): Promise<SleepPrediction> {
+    console.log('=== CLAUDE API CALL START ===')
+    console.log('Model:', this.model)
+    console.log('Prompt length:', prompt.length)
+    console.log('=== END CLAUDE API CALL START ===')
+    
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -89,7 +100,11 @@ export class ClaudeProvider implements LLMProvider {
 
       throw new Error('Could not parse JSON from Claude response')
     } catch (error) {
-      console.error('Claude API error:', error)
+      console.error('=== CLAUDE API ERROR ===')
+      console.error('Error type:', typeof error)
+      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error')
+      console.error('Full error:', error)
+      console.error('=== END CLAUDE API ERROR ===')
       throw error
     }
   }

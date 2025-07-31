@@ -4,6 +4,15 @@ export function getLLMConfig(): LLMConfig {
   // Default to OpenAI, but allow override via environment variable
   const provider = (process.env.LLM_PROVIDER as LLMProviderType) || 'openai'
   
+  console.log('=== LLM CONFIG DEBUG ===')
+  console.log('Selected provider:', provider)
+  console.log('Available environment variables:')
+  console.log('- LLM_PROVIDER:', process.env.LLM_PROVIDER)
+  console.log('- OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET')
+  console.log('- GOOGLE_API_KEY:', process.env.GOOGLE_API_KEY ? 'SET' : 'NOT SET')
+  console.log('- CLAUDE_API_KEY:', process.env.CLAUDE_API_KEY ? 'SET' : 'NOT SET')
+  console.log('=== END LLM CONFIG DEBUG ===')
+  
   let apiKey: string
   let model: string
   
@@ -21,8 +30,18 @@ export function getLLMConfig(): LLMConfig {
   }
   
   if (!apiKey) {
+    console.error(`=== API KEY ERROR ===`)
+    console.error(`API key not found for provider: ${provider}`)
+    console.error(`Expected environment variable: ${provider === 'openai' ? 'OPENAI_API_KEY' : provider === 'gemini' ? 'GOOGLE_API_KEY' : 'CLAUDE_API_KEY'}`)
+    console.error(`=== END API KEY ERROR ===`)
     throw new Error(`API key not found for provider: ${provider}`)
   }
+  
+  console.log('=== LLM CONFIG SUCCESS ===')
+  console.log('Using provider:', provider)
+  console.log('Using model:', model)
+  console.log('API key length:', apiKey.length)
+  console.log('=== END LLM CONFIG SUCCESS ===')
   
   return {
     provider,

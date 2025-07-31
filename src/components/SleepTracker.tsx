@@ -29,6 +29,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
   const [startTimeManuallySet, setStartTimeManuallySet] = useState(false)
   const [isUserSelectingStartTime, setIsUserSelectingStartTime] = useState(false)
   const [isUserSelectingEndTime, setIsUserSelectingEndTime] = useState(false)
+  const [endTimeManuallySet, setEndTimeManuallySet] = useState(false)
   const [validationErrors, setValidationErrors] = useState<{
     endTime?: string
     quality?: string
@@ -70,9 +71,8 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
         const localDateTime = formatForDatetimeLocal(now)
         
         if (activeSession) {
-          // Only update end time if user hasn't manually set it
-          // This prevents race conditions during validation
-          if (!isUserSelectingEndTime) {
+          // Only update end time if user hasn't manually set it and is not currently selecting
+          if (!isUserSelectingEndTime && !endTimeManuallySet) {
             setEndTime(localDateTime)
           }
         } else if (!startTimeManuallySet && !isUserSelectingStartTime) {
@@ -84,7 +84,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
       
       return () => clearInterval(timer)
     }
-  }, [activeSession, currentTime, startTimeManuallySet, isUserSelectingStartTime, isUserSelectingEndTime])
+  }, [activeSession, currentTime, startTimeManuallySet, isUserSelectingStartTime, isUserSelectingEndTime, endTimeManuallySet])
 
   const handleStartSleep = async () => {
     // Clear previous errors
@@ -230,6 +230,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
       await endSleepSession(activeSession.id, sleepEndTime, quality || undefined)
       
       setEndTime('')
+      setEndTimeManuallySet(false)
       setQuality('')
       setShowEndFields(false)
       onSessionUpdate?.()
@@ -321,6 +322,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
                     onBlur={() => setIsUserSelectingEndTime(false)}
                     onChange={(e) => {
                       setEndTime(e.target.value)
+                      setEndTimeManuallySet(true)
                       clearError('endTime')
                     }}
                     error={validationErrors.endTime}
@@ -341,6 +343,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
                       onClick={() => {
                         setShowEndFields(false)
                         setEndTime('')
+                        setEndTimeManuallySet(false)
                         setQuality('')
                         setValidationErrors({})
                       }}
@@ -408,6 +411,7 @@ export default function SleepTracker({ childId, activeSession, onSessionUpdate }
                     onBlur={() => setIsUserSelectingEndTime(false)}
                     onChange={(e) => {
                       setEndTime(e.target.value)
+                      setEndTimeManuallySet(true)
                       clearError('endTime')
                     }}
                     error={validationErrors.endTime}

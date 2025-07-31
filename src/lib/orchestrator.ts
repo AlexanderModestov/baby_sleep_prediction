@@ -218,6 +218,10 @@ export async function predictNextSleep(
     // Get LLM configuration from environment variables
     const llmConfig = getLLMConfig()
     
+    console.log('=== ORCHESTRATOR LLM SETUP ===')
+    console.log('LLM Config:', { provider: llmConfig.provider, model: llmConfig.model, hasApiKey: !!llmConfig.apiKey })
+    console.log('=== END ORCHESTRATOR LLM SETUP ===')
+    
     // Create provider based on config
     const provider = createProvider(llmConfig)
     

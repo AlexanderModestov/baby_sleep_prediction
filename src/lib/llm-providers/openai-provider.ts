@@ -6,6 +6,12 @@ export class OpenAIProvider implements LLMProvider {
   private model: string
 
   constructor(apiKey: string, model: string) {
+    console.log('=== OPENAI PROVIDER INIT ===')
+    console.log('API key length:', apiKey.length)
+    console.log('API key prefix:', apiKey.substring(0, 10) + '...')
+    console.log('Model:', model)
+    console.log('=== END OPENAI PROVIDER INIT ===')
+    
     this.client = new OpenAI({
       apiKey: apiKey
     })
@@ -13,6 +19,11 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   async generateSleepPrediction(prompt: string): Promise<SleepPrediction> {
+    console.log('=== OPENAI API CALL START ===')
+    console.log('Model:', this.model)
+    console.log('Prompt length:', prompt.length)
+    console.log('=== END OPENAI API CALL START ===')
+    
     try {
       const response = await this.client.chat.completions.create({
         model: this.model,
@@ -80,7 +91,11 @@ export class OpenAIProvider implements LLMProvider {
 
       throw new Error('Could not parse JSON from OpenAI response')
     } catch (error) {
-      console.error('OpenAI API error:', error)
+      console.error('=== OPENAI API ERROR ===')
+      console.error('Error type:', typeof error)
+      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error')
+      console.error('Full error:', error)
+      console.error('=== END OPENAI API ERROR ===')
       throw error
     }
   }
