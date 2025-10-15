@@ -4,15 +4,13 @@ import Card from './ui/Card'
 
 interface SleepPromptsProps {
   recentSessions: SleepSession[]
-  childAge: number
   childName: string
   onScrollToTracker: () => void
   onQuickStart?: () => void
 }
 
-export default function SleepPrompts({ 
-  recentSessions, 
-  childAge, 
+export default function SleepPrompts({
+  recentSessions,
   childName,
   onScrollToTracker,
   onQuickStart

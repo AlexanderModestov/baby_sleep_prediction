@@ -695,7 +695,6 @@ export default function SleepPrediction({
             {!loading && !error && !(prediction || realTimeMetrics) && (
               <SleepPrompts
                 recentSessions={stableRecentSessions}
-                childAge={childAge}
                 childName={childName}
                 onScrollToTracker={handleWakeUpClick}
                 onQuickStart={onQuickStart}
