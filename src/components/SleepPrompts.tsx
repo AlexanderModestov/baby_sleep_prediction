@@ -43,10 +43,10 @@ export default function SleepPrompts({
       case 'no-records':
         return {
           icon: '🌟',
-          title: `Start tracking ${childName}'s sleep`,
-          message: `To get personalized AI predictions for your ${ageGroup}, we need to learn ${childName}'s sleep patterns first.`,
-          action: 'Record First Sleep Session',
-          highlight: 'Just 3 sleep sessions unlock AI predictions!',
+          title: `Get started ${childName}'s sleep`,
+          message: `Record when ${childName} woke up after night sleep to help us schedule next sleeps.`,
+          action: 'Wake up!',
+          highlight: '',
           bgColor: 'bg-gradient-to-r from-blue-50 to-purple-50',
           borderColor: 'border-blue-200'
         }
@@ -85,11 +85,13 @@ export default function SleepPrompts({
           </p>
         </div>
 
-        <div className="inline-block px-3 py-1 bg-white bg-opacity-80 rounded-full">
-          <span className="text-xs font-medium text-gray-700">
-            {config.highlight}
-          </span>
-        </div>
+        {config.highlight && (
+          <div className="inline-block px-3 py-1 bg-white bg-opacity-80 rounded-full">
+            <span className="text-xs font-medium text-gray-700">
+              {config.highlight}
+            </span>
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row gap-2 justify-center">
           <Button
@@ -112,7 +114,6 @@ export default function SleepPrompts({
 
         {promptType === 'no-records' && (
           <div className="text-xs text-gray-500 space-y-1">
-            <p>💡 <strong>Tip:</strong> Start with recent sleep sessions for best results</p>
             <p>🔒 Your data is private and secure</p>
           </div>
         )}

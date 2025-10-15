@@ -42,6 +42,14 @@ export function calculateAge(birthDate: string): number {
   return Math.floor(diffDays / 30) // Approximate months
 }
 
+export function calculateAgeInWeeks(birthDate: string): number {
+  const birth = new Date(birthDate)
+  const today = new Date()
+  const diffTime = Math.abs(today.getTime() - birth.getTime())
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return Math.floor(diffDays / 7) // Age in weeks
+}
+
 export function getSessionType(startTime: string): 'night' | 'nap' {
   const hour = new Date(startTime).getHours()
   // Consider sleep starting between 6 PM and 6 AM as night sleep

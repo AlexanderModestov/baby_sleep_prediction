@@ -1,8 +1,13 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { SleepSession } from '@/lib/supabase'
 import { useSleepSessions } from '@/hooks/useSupabase'
+import { useTelegram } from '@/hooks/useTelegram'
+import { getSessionType, calculateAgeInWeeks } from '@/lib/utils'
 import Button from './ui/Button'
 import Card from './ui/Card'
+import Modal from './ui/Modal'
+import Input from './ui/Input'
+import Select from './ui/Select'
 import SleepPrompts from './SleepPrompts'
 
 interface SleepPrediction {
@@ -28,6 +33,7 @@ interface PredictionText {
 
 interface SleepPredictionProps {
   childAge: number
+  childBirthDate?: string
   recentSessions: SleepSession[]
   activeSession?: SleepSession
   refreshTrigger?: number
@@ -36,20 +42,36 @@ interface SleepPredictionProps {
   childId?: string
   onScrollToTracker?: () => void
   onQuickStart?: () => void
+  onSessionUpdate?: () => void
 }
 
-export default function SleepPrediction({ 
-  childAge, 
-  recentSessions, 
+export default function SleepPrediction({
+  childAge,
+  childBirthDate,
+  recentSessions,
   activeSession,
   refreshTrigger,
   childGender = 'unknown',
   childName = 'Baby',
   childId,
   onScrollToTracker,
-  onQuickStart
+  onQuickStart,
+  onSessionUpdate
 }: SleepPredictionProps) {
-  const { savePrediction } = useSleepSessions(childId)
+  const { savePrediction, startSleepSession } = useSleepSessions(childId)
+  const { showAlert, hapticFeedback } = useTelegram()
+
+  // Wake-up tracking modal state
+  const [showWakeUpModal, setShowWakeUpModal] = useState(false)
+  const [wakeUpTime, setWakeUpTime] = useState('')
+  const [sleepStartTime, setSleepStartTime] = useState('')
+  const [sleepQuality, setSleepQuality] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<{
+    wakeUpTime?: string
+    sleepStartTime?: string
+    sleepQuality?: string
+  }>({})
 
   // Helper function to hash data using native Web Crypto API
   const hashData = async (data: string): Promise<string> => {
@@ -58,6 +80,145 @@ export default function SleepPrediction({
     return Array.from(new Uint8Array(buffer))
       .map(b => b.toString(16).padStart(2, '0')).join('')
   }
+
+  // Helper function to convert Date to datetime-local format
+  const formatForDatetimeLocal = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  }
+
+  // Helper function to parse datetime-local value to Date object
+  const parseDatetimeLocal = (datetimeLocal: string): Date => {
+    return new Date(datetimeLocal)
+  }
+
+  // Initialize modal times when opened
+  useEffect(() => {
+    if (showWakeUpModal && !wakeUpTime) {
+      const now = new Date()
+      setWakeUpTime(formatForDatetimeLocal(now))
+      // Default sleep start time to 8 hours ago (typical night sleep)
+      const sleepStart = new Date(now.getTime() - 8 * 60 * 60 * 1000)
+      setSleepStartTime(formatForDatetimeLocal(sleepStart))
+    }
+  }, [showWakeUpModal, wakeUpTime])
+
+  const handleWakeUpClick = () => {
+    setShowWakeUpModal(true)
+    hapticFeedback()
+  }
+
+  const handleSaveWakeUp = async () => {
+    // Clear previous errors
+    setValidationErrors({})
+
+    const errors: typeof validationErrors = {}
+
+    // Validate required fields
+    if (!wakeUpTime) {
+      errors.wakeUpTime = 'Please select wake up time'
+    }
+
+    if (!sleepStartTime) {
+      errors.sleepStartTime = 'Please select sleep start time'
+    }
+
+    if (!sleepQuality) {
+      errors.sleepQuality = 'Please select sleep quality'
+    }
+
+    // Validate times
+    if (wakeUpTime && sleepStartTime) {
+      const wakeTimeDate = parseDatetimeLocal(wakeUpTime)
+      const sleepTimeDate = parseDatetimeLocal(sleepStartTime)
+      const now = new Date()
+
+      if (wakeTimeDate > now) {
+        errors.wakeUpTime = 'Wake up time cannot be in the future'
+      }
+
+      if (sleepTimeDate > now) {
+        errors.sleepStartTime = 'Sleep start time cannot be in the future'
+      }
+
+      if (wakeTimeDate <= sleepTimeDate) {
+        errors.wakeUpTime = 'Wake up time must be after sleep start time'
+      }
+    }
+
+    // If there are errors, show them and return
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors)
+      hapticFeedback()
+      const firstError = Object.values(errors)[0]
+      showAlert(firstError)
+      return
+    }
+
+    setIsSaving(true)
+    hapticFeedback()
+
+    try {
+      // Convert local datetime to UTC for server
+      const sleepStart = parseDatetimeLocal(sleepStartTime).toISOString()
+      const sleepEnd = parseDatetimeLocal(wakeUpTime).toISOString()
+
+      // Calculate duration
+      const durationMinutes = Math.floor((parseDatetimeLocal(wakeUpTime).getTime() - parseDatetimeLocal(sleepStartTime).getTime()) / (1000 * 60))
+
+      if (!childId) {
+        throw new Error('Child ID is required')
+      }
+
+      await startSleepSession({
+        child_id: childId,
+        start_time: sleepStart,
+        end_time: sleepEnd,
+        duration_minutes: durationMinutes,
+        quality: sleepQuality as "excellent" | "good" | "average" | "poor" | "very_poor",
+        session_type: getSessionType(sleepStart),
+        is_active: false
+      })
+
+      // Reset form
+      setShowWakeUpModal(false)
+      setWakeUpTime('')
+      setSleepStartTime('')
+      setSleepQuality('')
+      setValidationErrors({})
+
+      // Trigger refresh
+      onSessionUpdate?.()
+    } catch {
+      hapticFeedback()
+      showAlert('Failed to save sleep session. Please try again.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const clearError = (field: keyof typeof validationErrors) => {
+    if (validationErrors[field]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[field]
+        return newErrors
+      })
+    }
+  }
+
+  const qualityOptions = [
+    { value: 'excellent', label: 'Slept well' },
+    { value: 'good', label: 'Good sleep' },
+    { value: 'average', label: 'Average sleep' },
+    { value: 'poor', label: 'Poor sleep' },
+    { value: 'very_poor', label: 'Very poor sleep' }
+  ]
+
   const [prediction, setPrediction] = useState<SleepPrediction | null>(null)
   const [predictionText, setPredictionText] = useState<PredictionText | null>(null)
   const [realTimeMetrics, setRealTimeMetrics] = useState<{nextBedtime: string, timeUntilBedtime: string, expectedDuration: string} | null>(null)
@@ -315,14 +476,16 @@ export default function SleepPrediction({
       setCurrentTime(new Date())
       const metrics = calculateRealTimeMetrics()
       setRealTimeMetrics(metrics)
+      // Force re-render to update countdown
+      setPrediction(prev => prev ? {...prev} : null)
     }
-    
+
     // Update immediately
     updateMetrics()
-    
+
     // Then update every minute
     const timer = setInterval(updateMetrics, 60000)
-    
+
     return () => clearInterval(timer)
   }, [calculateRealTimeMetrics])
 
@@ -351,6 +514,32 @@ export default function SleepPrediction({
   }, [stableRecentSessions])
 
   const timeSinceLastSleep = getTimeSinceLastSleep()
+
+  // Helper function to format next sleep time as "in 00:43" or "02:54 ago"
+  const getNextSleepCountdown = useCallback(() => {
+    if (!prediction?.nextBedtime) return null
+
+    const now = new Date()
+    const nextBedtime = new Date(prediction.nextBedtime)
+    const diffMs = nextBedtime.getTime() - now.getTime()
+    const isPast = diffMs < 0
+    const absDiffMs = Math.abs(diffMs)
+
+    const hours = Math.floor(absDiffMs / (1000 * 60 * 60))
+    const minutes = Math.floor((absDiffMs % (1000 * 60 * 60)) / (1000 * 60))
+
+    const formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+
+    return isPast ? `${formattedTime} ago` : `in ${formattedTime}`
+  }, [prediction])
+
+  const nextSleepCountdown = getNextSleepCountdown()
+
+  // Get baby age in weeks
+  const babyAgeInWeeks = childBirthDate ? calculateAgeInWeeks(childBirthDate) : null
+
+  // Determine if we should show the track sleep button
+  const showTrackSleepButton = !activeSession && recentSessions.length > 0
 
   return (
     <Card>
@@ -452,8 +641,17 @@ export default function SleepPrediction({
                   </div>
                 )}
                 <div className="space-y-3">
+                  {/* Next Sleep - Countdown or Time Passed */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Next bedtime:</span>
+                    <span className="text-sm text-gray-700">Next sleep:</span>
+                    <span className="font-semibold text-pink-800">
+                      {nextSleepCountdown || 'Calculating...'}
+                    </span>
+                  </div>
+
+                  {/* Bedtime */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">Bedtime:</span>
                     <span className="font-semibold text-purple-800">
                       {realTimeMetrics?.nextBedtime || (prediction ? new Date(prediction.nextBedtime).toLocaleTimeString(undefined, {
                         hour: '2-digit',
@@ -462,25 +660,31 @@ export default function SleepPrediction({
                       }) : 'Calculating...')}
                     </span>
                   </div>
-                  
+
+                  {/* Duration */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Time until:</span>
-                    <span className="font-semibold text-pink-800">
-                      {realTimeMetrics?.timeUntilBedtime || prediction?.timeUntilBedtime || 'Calculating...'}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Expected duration:</span>
+                    <span className="text-sm text-gray-700">Duration:</span>
                     <span className="font-semibold text-blue-800">
                       {realTimeMetrics?.expectedDuration || predictionText?.expectedDuration || prediction?.expectedDuration || 'Calculating...'}
                     </span>
                   </div>
-                  
-                  {(predictionText?.summary || prediction?.summary) && (
-                    <div className="pt-2 border-t border-purple-200">
-                      <p className="text-sm text-purple-700 font-medium">
-                        {predictionText?.summary || prediction?.summary}
+
+                  {/* Track Sleep Button */}
+                  {showTrackSleepButton && (
+                    <Button
+                      onClick={handleWakeUpClick}
+                      className="w-full mt-2"
+                      size="sm"
+                    >
+                      Track Sleep
+                    </Button>
+                  )}
+
+                  {/* Tip */}
+                  {babyAgeInWeeks !== null && (
+                    <div className="pt-3 border-t border-purple-200">
+                      <p className="text-xs text-gray-600 italic">
+                        <span className="font-medium">Tip:</span> The sleep schedule is based on general sleep recommendations for babies {babyAgeInWeeks} weeks age. Track sleeps to get personalized predictions.
                       </p>
                     </div>
                   )}
@@ -493,13 +697,90 @@ export default function SleepPrediction({
                 recentSessions={stableRecentSessions}
                 childAge={childAge}
                 childName={childName}
-                onScrollToTracker={onScrollToTracker || (() => {})}
+                onScrollToTracker={handleWakeUpClick}
                 onQuickStart={onQuickStart}
               />
             )}
           </div>
         )}
       </div>
+
+      {/* Wake Up Modal */}
+      <Modal
+        isOpen={showWakeUpModal}
+        onClose={() => {
+          setShowWakeUpModal(false)
+          setWakeUpTime('')
+          setSleepStartTime('')
+          setSleepQuality('')
+          setValidationErrors({})
+        }}
+        title="Track Sleep"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Record when {childName} woke up from their sleep.
+          </p>
+
+          <Input
+            label="Sleep Start Time"
+            type="datetime-local"
+            value={sleepStartTime}
+            max={formatForDatetimeLocal(new Date())}
+            onChange={(e) => {
+              setSleepStartTime(e.target.value)
+              clearError('sleepStartTime')
+            }}
+            error={validationErrors.sleepStartTime}
+          />
+
+          <Input
+            label="Wake Up Time"
+            type="datetime-local"
+            value={wakeUpTime}
+            max={formatForDatetimeLocal(new Date())}
+            onChange={(e) => {
+              setWakeUpTime(e.target.value)
+              clearError('wakeUpTime')
+            }}
+            error={validationErrors.wakeUpTime}
+          />
+
+          <Select
+            label="Sleep Quality"
+            value={sleepQuality}
+            onChange={(e) => {
+              setSleepQuality(e.target.value)
+              clearError('sleepQuality')
+            }}
+            options={qualityOptions}
+            error={validationErrors.sleepQuality}
+          />
+
+          <div className="flex space-x-3 pt-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowWakeUpModal(false)
+                setWakeUpTime('')
+                setSleepStartTime('')
+                setSleepQuality('')
+                setValidationErrors({})
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveWakeUp}
+              disabled={isSaving}
+              className="flex-1"
+            >
+              {isSaving ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </Card>
   )
 }

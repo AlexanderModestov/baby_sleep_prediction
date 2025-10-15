@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useChildren, useSleepSessions } from '@/hooks/useSupabase'
 import { useTelegram } from '@/hooks/useTelegram'
 import { Child } from '@/lib/supabase'
 import { calculateAge } from '@/lib/utils'
 import Button from './ui/Button'
 import SwipeableChildSelector from './ui/SwipeableChildSelector'
-import SleepTracker from './SleepTracker'
 import SleepPrediction from './SleepPrediction'
 import SleepHistory from './SleepHistory'
 
@@ -20,19 +19,11 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [lastDeletedId, setLastDeletedId] = useState<string | null>(null)
-  const sleepTrackerRef = useRef<HTMLDivElement>(null)
   const { sessions, loading: sessionsLoading, deleteSleepSession, refetch } = useSleepSessions(selectedChild?.id)
 
   const handleDeleteSession = async (sessionId: string) => {
     setLastDeletedId(sessionId)
     await deleteSleepSession(sessionId)
-  }
-
-  const scrollToSleepTracker = () => {
-    sleepTrackerRef.current?.scrollIntoView({ 
-      behavior: 'smooth', 
-      block: 'start' 
-    })
   }
 
   // Trigger prediction refresh after sessions array updates
@@ -103,25 +94,17 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
 
       {selectedChild && (
         <>
-          {/* Sleep Tracker */}
-          <div ref={sleepTrackerRef}>
-            <SleepTracker
-              childId={selectedChild.id}
-              activeSession={activeSession}
-              onSessionUpdate={refetch}
-            />
-          </div>
-
-          {/* Sleep Prediction */}
+          {/* Sleep Info */}
           <SleepPrediction
             childAge={calculateAge(selectedChild.date_of_birth)}
+            childBirthDate={selectedChild.date_of_birth}
             recentSessions={sessions.slice(0, 10)}
             activeSession={activeSession}
             refreshTrigger={refreshTrigger}
             childGender={selectedChild.gender}
             childName={selectedChild.name}
             childId={selectedChild.id}
-            onScrollToTracker={scrollToSleepTracker}
+            onSessionUpdate={refetch}
           />
 
           {/* Sleep History */}
