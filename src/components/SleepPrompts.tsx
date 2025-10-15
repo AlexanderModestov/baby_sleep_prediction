@@ -20,25 +20,15 @@ export default function SleepPrompts({
   const getPromptType = () => {
     if (recentSessions.length === 0) return 'no-records'
     if (recentSessions.length < 3) return 'insufficient-records'
-    
+
     return null
   }
 
   const promptType = getPromptType()
-  
+
   if (!promptType) return null
 
-  const getAgeGroup = () => {
-    if (childAge <= 3) return 'newborn'
-    if (childAge <= 6) return 'infant'
-    if (childAge <= 12) return 'baby'
-    if (childAge <= 24) return 'toddler'
-    return 'child'
-  }
-
   const getPromptConfig = () => {
-    const ageGroup = getAgeGroup()
-    
     switch (promptType) {
       case 'no-records':
         return {
