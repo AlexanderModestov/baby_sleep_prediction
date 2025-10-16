@@ -17,7 +17,6 @@ export default function SleepPrompts({
 }: SleepPromptsProps) {
   const getPromptType = () => {
     if (recentSessions.length === 0) return 'no-records'
-    if (recentSessions.length < 3) return 'insufficient-records'
 
     return null
   }
@@ -38,19 +37,7 @@ export default function SleepPrompts({
           bgColor: 'bg-gradient-to-r from-blue-50 to-purple-50',
           borderColor: 'border-blue-200'
         }
-        
-      case 'insufficient-records':
-        const remaining = 3 - recentSessions.length
-        return {
-          icon: '📊',
-          title: `${remaining} more session${remaining > 1 ? 's' : ''} needed`,
-          message: `Great start! You have ${recentSessions.length} session${recentSessions.length > 1 ? 's' : ''} recorded. Just ${remaining} more to unlock personalized AI predictions.`,
-          action: 'Add Another Session',
-          highlight: `Almost there - ${remaining} to go!`,
-          bgColor: 'bg-gradient-to-r from-green-50 to-blue-50',
-          borderColor: 'border-green-200'
-        }
-        
+
       default:
         return null
     }

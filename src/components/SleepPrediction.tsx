@@ -255,7 +255,7 @@ export default function SleepPrediction({
       return
     }
 
-    if (activeSession || stableRecentSessions.length < 3) {
+    if (activeSession || stableRecentSessions.length < 1) {
       return
     }
 
@@ -332,7 +332,7 @@ export default function SleepPrediction({
       })
       
       // Save prediction to database if childId is provided
-      if (childId && result.sessionCount >= 3) { // Only save AI predictions, not general recommendations
+      if (childId && result.sessionCount >= 1) { // Save all AI predictions
         try {
           // Generate hash of input sessions for deduplication
           const inputHash = await hashData(JSON.stringify(stableRecentSessions))

@@ -33,8 +33,8 @@ export async function POST(request: NextRequest) {
     const { childId, childAge, childGender, sleepHistory, childName } = parsedBody
 
 
-    // Check database cache for LLM predictions only (3+ sessions)
-    const shouldCheckLLMCache = sleepHistory?.length >= 3 && childId
+    // Check database cache for LLM predictions
+    const shouldCheckLLMCache = sleepHistory?.length >= 1 && childId
     
     if (shouldCheckLLMCache) {
       try {

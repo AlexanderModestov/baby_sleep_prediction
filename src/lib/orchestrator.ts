@@ -112,12 +112,12 @@ export async function predictNextSleep(
           'ongoing'
       })
     })
-    console.log('Will use LLM?', sleepHistory.length >= 3 ? 'YES' : 'NO (insufficient data)')
+    console.log('Will use LLM?', sleepHistory.length >= 1 ? 'YES' : 'NO (no sleep data)')
     console.log('=== END SLEEP RECORDS DEBUG ===')
 
     // Check if there's insufficient sleep history for personalized predictions
-    if (sleepHistory.length < 3) {
-      throw new Error('Insufficient data to predict next sleep. Need at least 3 sleep sessions.')
+    if (sleepHistory.length < 1) {
+      throw new Error('Insufficient data to predict next sleep. Need at least 1 sleep session.')
     }
 
     // Let LLM handle gap detection and missing sessions
