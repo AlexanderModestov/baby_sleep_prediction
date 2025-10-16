@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { SleepSession } from '@/lib/supabase'
 import { useSleepSessions } from '@/hooks/useSupabase'
 import { useTelegram } from '@/hooks/useTelegram'
-import { getSessionType, calculateAgeInWeeks } from '@/lib/utils'
+import { getSessionType } from '@/lib/utils'
 import Button from './ui/Button'
 import Card from './ui/Card'
 import Modal from './ui/Modal'
@@ -33,7 +33,6 @@ interface PredictionText {
 
 interface SleepPredictionProps {
   childAge: number
-  childBirthDate?: string
   recentSessions: SleepSession[]
   activeSession?: SleepSession
   refreshTrigger?: number
@@ -47,7 +46,6 @@ interface SleepPredictionProps {
 
 export default function SleepPrediction({
   childAge,
-  childBirthDate,
   recentSessions,
   activeSession,
   refreshTrigger,
@@ -441,7 +439,7 @@ export default function SleepPrediction({
 
     // No fallback - only show predictions when we have LLM data
     return null
-  }, [stableRecentSessions, childAge, prediction])
+  }, [stableRecentSessions, prediction])
   
   // Update current time and real-time metrics every minute
   useEffect(() => {
@@ -507,9 +505,6 @@ export default function SleepPrediction({
   }, [prediction])
 
   const nextSleepCountdown = getNextSleepCountdown()
-
-  // Get baby age in weeks
-  const babyAgeInWeeks = childBirthDate ? calculateAgeInWeeks(childBirthDate) : null
 
   // Determine if we should show the track sleep button
   const showTrackSleepButton = !activeSession && recentSessions.length > 0

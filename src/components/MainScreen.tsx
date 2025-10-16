@@ -97,7 +97,6 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
           {/* Sleep Info */}
           <SleepPrediction
             childAge={calculateAge(selectedChild.date_of_birth)}
-            childBirthDate={selectedChild.date_of_birth}
             recentSessions={sessions.slice(0, 10)}
             activeSession={activeSession}
             refreshTrigger={refreshTrigger}
