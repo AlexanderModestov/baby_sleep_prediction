@@ -256,8 +256,8 @@ export default function SleepPrediction({
       console.log('Skipping prediction: invalid child age', childAge)
       return
     }
-    
-    if (activeSession || stableRecentSessions.length === 0) {
+
+    if (activeSession || stableRecentSessions.length < 3) {
       return
     }
 
@@ -438,48 +438,9 @@ export default function SleepPrediction({
 
       return metrics
     }
-    
-    // Fallback to age-based calculation if no LLM prediction
-    const getAgeBasedRecommendations = (ageInMonths: number) => {
-      if (ageInMonths <= 3) return { wakeWindow: 45, sleepDuration: 120 }
-      if (ageInMonths <= 6) return { wakeWindow: 90, sleepDuration: 90 }
-      if (ageInMonths <= 12) return { wakeWindow: 120, sleepDuration: 90 }
-      if (ageInMonths <= 24) return { wakeWindow: 180, sleepDuration: 120 }
-      return { wakeWindow: 240, sleepDuration: 90 }
-    }
 
-    const recommendations = getAgeBasedRecommendations(childAge)
-    const { wakeWindow, sleepDuration } = recommendations
-    const lastSleepEnd = new Date(lastSession.end_time)
-    const timeSinceLastSleep = Math.floor((nowUTC.getTime() - lastSleepEnd.getTime()) / (1000 * 60))
-    // Don't clamp to 0 - keep the actual time difference
-    const timeUntilBedtime = wakeWindow - timeSinceLastSleep
-    const isPast = timeUntilBedtime < 0
-    // Calculate bedtime based on last sleep + wake window (not current time)
-    const nextBedtime = new Date(lastSleepEnd.getTime() + wakeWindow * 60 * 1000)
-
-    const formatTime = (minutes: number, isPast: boolean): string => {
-      const absMinutes = Math.abs(minutes)
-      const hours = Math.floor(absMinutes / 60)
-      const mins = absMinutes % 60
-
-      let timeStr = ''
-      if (hours === 0) timeStr = `${mins} minutes`
-      else if (mins === 0) timeStr = `${hours} hours`
-      else timeStr = `${hours} hours ${mins} minutes`
-
-      return isPast ? `${timeStr} ago` : timeStr
-    }
-
-    return {
-      nextBedtime: nextBedtime.toLocaleTimeString(undefined, {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      }),
-      timeUntilBedtime: formatTime(timeUntilBedtime, isPast),
-      expectedDuration: formatTime(sleepDuration, false)
-    }
+    // No fallback - only show predictions when we have LLM data
+    return null
   }, [stableRecentSessions, childAge, prediction])
   
   // Update current time and real-time metrics every minute
@@ -690,15 +651,6 @@ export default function SleepPrediction({
                     >
                       Track Sleep
                     </Button>
-                  )}
-
-                  {/* Tip */}
-                  {babyAgeInWeeks !== null && (
-                    <div className="pt-3 border-t border-purple-200">
-                      <p className="text-xs text-gray-600 italic">
-                        <span className="font-medium">Tip:</span> The sleep schedule is based on general sleep recommendations for babies {babyAgeInWeeks} weeks age. Track sleeps to get personalized predictions.
-                      </p>
-                    </div>
                   )}
                 </div>
               </div>
