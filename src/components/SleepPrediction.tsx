@@ -389,48 +389,53 @@ export default function SleepPrediction({
   // Adjust LLM prediction based on current time
   const calculateRealTimeMetrics = useCallback(() => {
     if (stableRecentSessions.length === 0) return null
-    
+
     const nowUTC = new Date()
     const lastSession = stableRecentSessions[0]
-    
+
     if (!lastSession.end_time) return null
-    
+
     // If we have an LLM prediction, use it as base and adjust for current time
     if (prediction?.nextBedtime) {
       const llmBedtime = new Date(prediction.nextBedtime)
       const timeDiff = llmBedtime.getTime() - nowUTC.getTime()
       const minutesUntil = Math.round(timeDiff / (1000 * 60))
-      
-      // If LLM prediction is in the past, show it's time for bed (0 minutes)
-      const adjustedMinutesUntil = Math.max(0, minutesUntil)
+
+      // Always keep the original predicted bedtime, don't adjust it to current time
       const adjustedBedtime = llmBedtime
-      
-      const formatTime = (minutes: number): string => {
-        const hours = Math.floor(minutes / 60)
-        const mins = minutes % 60
-        
-        if (hours === 0) return `${mins} minutes`
-        if (mins === 0) return `${hours} hours`
-        return `${hours} hours ${mins} minutes`
+
+      const formatTime = (minutes: number, isPast: boolean): string => {
+        const absMinutes = Math.abs(minutes)
+        const hours = Math.floor(absMinutes / 60)
+        const mins = absMinutes % 60
+
+        let timeStr = ''
+        if (hours === 0) timeStr = `${mins} minutes`
+        else if (mins === 0) timeStr = `${hours} hours`
+        else timeStr = `${hours} hours ${mins} minutes`
+
+        return isPast ? `${timeStr} ago` : timeStr
       }
-      
+
+      const isPast = minutesUntil < 0
+
       const metrics = {
         nextBedtime: adjustedBedtime.toLocaleTimeString(undefined, {
           hour: '2-digit',
           minute: '2-digit',
           hour12: true
         }),
-        timeUntilBedtime: formatTime(adjustedMinutesUntil),
+        timeUntilBedtime: formatTime(minutesUntil, isPast),
         expectedDuration: prediction.expectedDuration || 'Unknown'
       }
-      
+
       console.log('=== ADJUSTED LLM PREDICTION ===')
       console.log('Original LLM bedtime:', llmBedtime.toLocaleTimeString())
       console.log('Adjusted bedtime (displayed):', metrics.nextBedtime)
       console.log('Time until (displayed):', metrics.timeUntilBedtime)
       console.log('Expected duration:', metrics.expectedDuration)
       console.log('=== END ADJUSTED LLM PREDICTION ===')
-      
+
       return metrics
     }
     
@@ -442,31 +447,38 @@ export default function SleepPrediction({
       if (ageInMonths <= 24) return { wakeWindow: 180, sleepDuration: 120 }
       return { wakeWindow: 240, sleepDuration: 90 }
     }
-    
+
     const recommendations = getAgeBasedRecommendations(childAge)
     const { wakeWindow, sleepDuration } = recommendations
     const lastSleepEnd = new Date(lastSession.end_time)
     const timeSinceLastSleep = Math.floor((nowUTC.getTime() - lastSleepEnd.getTime()) / (1000 * 60))
-    const timeUntilBedtime = Math.max(0, wakeWindow - timeSinceLastSleep)
-    const nextBedtime = new Date(nowUTC.getTime() + timeUntilBedtime * 60 * 1000)
-    
-    const formatTime = (minutes: number): string => {
-      const hours = Math.floor(minutes / 60)
-      const mins = minutes % 60
-      
-      if (hours === 0) return `${mins} minutes`
-      if (mins === 0) return `${hours} hours`
-      return `${hours} hours ${mins} minutes`
+    // Don't clamp to 0 - keep the actual time difference
+    const timeUntilBedtime = wakeWindow - timeSinceLastSleep
+    const isPast = timeUntilBedtime < 0
+    // Calculate bedtime based on last sleep + wake window (not current time)
+    const nextBedtime = new Date(lastSleepEnd.getTime() + wakeWindow * 60 * 1000)
+
+    const formatTime = (minutes: number, isPast: boolean): string => {
+      const absMinutes = Math.abs(minutes)
+      const hours = Math.floor(absMinutes / 60)
+      const mins = absMinutes % 60
+
+      let timeStr = ''
+      if (hours === 0) timeStr = `${mins} minutes`
+      else if (mins === 0) timeStr = `${hours} hours`
+      else timeStr = `${hours} hours ${mins} minutes`
+
+      return isPast ? `${timeStr} ago` : timeStr
     }
-    
+
     return {
       nextBedtime: nextBedtime.toLocaleTimeString(undefined, {
         hour: '2-digit',
         minute: '2-digit',
         hour12: true
       }),
-      timeUntilBedtime: formatTime(timeUntilBedtime),
-      expectedDuration: formatTime(sleepDuration)
+      timeUntilBedtime: formatTime(timeUntilBedtime, isPast),
+      expectedDuration: formatTime(sleepDuration, false)
     }
   }, [stableRecentSessions, childAge, prediction])
   
