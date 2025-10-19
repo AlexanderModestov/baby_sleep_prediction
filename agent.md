@@ -1,4 +1,4 @@
-# Claude Code Agent Instructions
+show # Claude Code Agent Instructions
 
 ## Core Principle: Minimal Scope Modification
 

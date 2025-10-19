@@ -52,42 +52,28 @@ function createPrompt(childAge: number, sleepHistory: SleepSession[], childGende
   const babyAge = `${childAge} months`
   
   return `You are an AI assistant helping parents predict their baby's next sleep time.
+
 The parents are tracking sleep for their baby:
+
 - Name: ${babyProfile.name}
 - Age: ${babyAge}
 - Gender: ${babyProfile.gender}
 
-The following are recent sleep records for this baby. Each record includes a start time, an end time, and the duration of sleep.
-Times are in YYYY-MM-DDTHH:MM format.
-
-Sleep Records:
+The following are time when baby woke up. Time is in YYYY-MM-DDTHH:MM format:  (${sleepHistory.length} session${sleepHistory.length === 1 ? '' : 's'}):
 ${formattedEntries}
 
-Based on this specific baby's profile and their sleep patterns, and considering typical infant sleep physiology for a baby of this age and gender:
-predict the baby's next likely bedtime or nap time.
-
-First, analyze if this sleep history looks realistic and complete for a baby of this age:
-- Are sleep durations reasonable for the age group?
-- Are wake windows appropriate?
-- Are there obvious gaps or missing sessions?
-- Do sleep patterns make biological sense?
+Based on this specific baby's profile and their sleep patterns, and considering typical infant sleep physiology for a baby of this age and gender: predict the baby's next likely bedtime or nap time.
 
 Please provide your response as a JSON object with the following exact structure:
-{
-  "isHistoryRealistic": true/false,
-  "nextBedtime": "YYYY-MM-DDTHH:MM",
-  "expectedDuration": "X hours Y minutes",
-  "reasoning": "Brief 2-3 sentence explanation without specific times only the general conclusions how we predict the next sleep time based on the sleep history"
-}
 
-If isHistoryRealistic is true, provide a normal prediction based on the sleep patterns.
-If isHistoryRealistic is false, just set the flag to false - the system will use default recommendations.
+{ "nextBedtime": "YYYY-MM-DDTHH:MM",
 
-If there is insufficient data to make a confident prediction (e.g., very few entries or highly erratic patterns), please return a JSON object with an error field:
-{
-  "error": "Insufficient data to predict next sleep for ${babyProfile.name}."
-}
-Be precise in your calculations.`
+"expectedDuration": "X hours Y minutes",
+
+"reasoning": "Brief 1 sentence explanation without specific times only the general conclusions how we predict the next sleep time based on the sleep history" }
+
+Be precise in your calculations`
+
 }
 
 export async function predictNextSleep(
