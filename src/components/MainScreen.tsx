@@ -19,6 +19,7 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [lastDeletedId, setLastDeletedId] = useState<string | null>(null)
+  const [lastSessionCount, setLastSessionCount] = useState(0)
   const { sessions, loading: sessionsLoading, deleteSleepSession, refetch } = useSleepSessions(selectedChild?.id)
 
   const handleDeleteSession = async (sessionId: string) => {
@@ -26,7 +27,7 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
     await deleteSleepSession(sessionId)
   }
 
-  // Trigger prediction refresh after sessions array updates
+  // Trigger prediction refresh after sessions array updates (deletions)
   useEffect(() => {
     if (lastDeletedId) {
       // Check if the session was actually removed from the array
@@ -37,6 +38,15 @@ export default function MainScreen({ onAddChild, onEditChild }: MainScreenProps)
       }
     }
   }, [sessions, lastDeletedId])
+
+  // Trigger prediction refresh when new sessions are added
+  useEffect(() => {
+    if (sessions.length > 0 && lastSessionCount > 0 && sessions.length > lastSessionCount) {
+      // New session was added
+      setRefreshTrigger(prev => prev + 1)
+    }
+    setLastSessionCount(sessions.length)
+  }, [sessions.length])
 
   useEffect(() => {
     if (children.length > 0 && !selectedChild) {
