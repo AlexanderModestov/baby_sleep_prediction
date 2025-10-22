@@ -223,7 +223,6 @@ export default function SleepPrediction({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [, setCurrentTime] = useState(new Date())
-  const [activeSessionCurrentTime, setActiveSessionCurrentTime] = useState(new Date())
   const [lastRequestId, setLastRequestId] = useState<string | null>(null)
   const [isRequestInFlight, setIsRequestInFlight] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -461,37 +460,6 @@ export default function SleepPrediction({
     return () => clearInterval(timer)
   }, [calculateRealTimeMetrics])
 
-  // Update active session duration every second
-  useEffect(() => {
-    if (!activeSession) return
-
-    const updateActiveSessionTime = () => {
-      setActiveSessionCurrentTime(new Date())
-    }
-
-    // Update immediately
-    updateActiveSessionTime()
-
-    // Then update every second
-    const timer = setInterval(updateActiveSessionTime, 1000)
-
-    return () => clearInterval(timer)
-  }, [activeSession])
-
-  // Calculate elapsed duration for active session
-  const getActiveSessionDuration = useCallback(() => {
-    if (!activeSession) return null
-
-    const start = new Date(activeSession.start_time)
-    const now = activeSessionCurrentTime
-    const diffMinutes = Math.floor((now.getTime() - start.getTime()) / (1000 * 60))
-
-    const hours = Math.floor(diffMinutes / 60)
-    const minutes = diffMinutes % 60
-
-    return `${hours}h ${minutes}m`
-  }, [activeSession, activeSessionCurrentTime])
-
   const getTimeSinceLastSleep = useCallback(() => {
     if (stableRecentSessions.length === 0) return null
     
@@ -565,22 +533,12 @@ export default function SleepPrediction({
 
         {/* Active Session Info */}
         {activeSession && (
-          <div className="p-4 bg-blue-50 rounded-xl">
-            <div className="text-center space-y-2">
-              <h3 className="font-semibold text-blue-800">
-                Currently Sleeping
-              </h3>
-              <div className="text-3xl font-bold text-blue-600">
-                {getActiveSessionDuration() || '⏱️'}
-              </div>
-              <p className="text-blue-600 text-sm">
-                Started at {new Date(activeSession.start_time).toLocaleTimeString(undefined, {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: true
-                })}
+          <div className="p-3 bg-blue-50 rounded-xl">
+            <div className="text-center">
+              <p className="text-blue-700 font-medium">
+                Baby is currently sleeping
               </p>
-              <p className="text-xs text-blue-500 mt-2">
+              <p className="text-sm text-blue-600">
                 Prediction will be available after wake up
               </p>
             </div>
