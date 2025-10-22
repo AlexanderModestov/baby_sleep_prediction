@@ -223,6 +223,7 @@ export default function SleepPrediction({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [, setCurrentTime] = useState(new Date())
+  const [activeSleepDuration, setActiveSleepDuration] = useState<string>('')
   const [lastRequestId, setLastRequestId] = useState<string | null>(null)
   const [isRequestInFlight, setIsRequestInFlight] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -486,6 +487,48 @@ export default function SleepPrediction({
 
   const timeSinceLastSleep = getTimeSinceLastSleep()
 
+  // Helper function to format duration for active sleep sessions
+  const formatActiveDuration = useCallback((startTime: string) => {
+    const start = new Date(startTime)
+    const now = new Date()
+    const diffMs = now.getTime() - start.getTime()
+
+    const hours = Math.floor(diffMs / (1000 * 60 * 60))
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
+    const seconds = Math.floor((diffMs % (1000 * 60)) / 1000)
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${seconds}s`
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds}s`
+    } else {
+      return `${seconds}s`
+    }
+  }, [])
+
+  // Update active sleep duration every second
+  useEffect(() => {
+    if (!activeSession) {
+      setActiveSleepDuration('')
+      return
+    }
+
+    const updateDuration = () => {
+      if (activeSession?.start_time) {
+        const formatted = formatActiveDuration(activeSession.start_time)
+        setActiveSleepDuration(formatted)
+      }
+    }
+
+    // Update immediately
+    updateDuration()
+
+    // Then update every second
+    const timer = setInterval(updateDuration, 1000)
+
+    return () => clearInterval(timer)
+  }, [activeSession, formatActiveDuration])
+
   // Helper function to format next sleep time as "in 00:43" or "02:54 ago"
   const getNextSleepCountdown = useCallback(() => {
     if (!prediction?.nextBedtime) return null
@@ -533,12 +576,26 @@ export default function SleepPrediction({
 
         {/* Active Session Info */}
         {activeSession && (
-          <div className="p-3 bg-blue-50 rounded-xl">
-            <div className="text-center">
-              <p className="text-blue-700 font-medium">
-                Baby is currently sleeping
-              </p>
-              <p className="text-sm text-blue-600">
+          <div className="p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
+            <div className="space-y-3">
+              <div className="flex items-center justify-center space-x-2">
+                <div className="relative">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <div className="absolute top-0 left-0 w-3 h-3 bg-blue-500 rounded-full animate-ping"></div>
+                </div>
+                <p className="text-blue-700 font-medium">
+                  Baby is currently sleeping
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-white rounded-lg">
+                <span className="text-sm text-gray-700">Sleep duration:</span>
+                <span className="text-lg font-bold text-blue-600 tabular-nums">
+                  {activeSleepDuration || 'Calculating...'}
+                </span>
+              </div>
+
+              <p className="text-xs text-center text-blue-600">
                 Prediction will be available after wake up
               </p>
             </div>
